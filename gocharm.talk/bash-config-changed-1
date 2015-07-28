@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eux
+
+servicename=`config-get name`
+cat > /etc/myservice-config << EOF
+name=$servicename
+EOF
+restart myservice

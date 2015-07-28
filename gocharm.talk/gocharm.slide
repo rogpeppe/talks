@@ -1,0 +1,287 @@
+Gocharm
+Implementing Juju charms in Go
+
+Roger Peppe
+Juju UI Engineering team.
+roger.peppe@canonical.com
+@rogpeppe
+
+* What is Gocharm?
+
+- We see charms as language-agnostic
+
+- This is a Good Thing
+
+- Is it possible to write a charm in Go?
+
+
+# I'd like to talk about a Friday afternoon project
+# that I have spent some time on in the last year -
+# writing charms in Go.
+# 
+# It has always been said that, for charm authors,
+# Juju is language agnostic. As someone that writes
+# mostly in Go, I thought it might be nice to explore
+# the possibility of using Go instead of bash or python.
+#
+# When designing the Go interface, I had some goals
+# in mind. The main one was...
+
+* Composability
+
+# The first charm that everyone sees is written
+# in bash. The concept is one that is immediately
+# easy to grasp: something changes, then your
+# code is called. You can use commands to interrogate
+# the state.
+# 
+# A typical config-changed hook might start off
+# looking something like this.
+
+- A simple config-changed hook
+
+.code bash-config-changed-1
+
+* Complexity escalation
+
+- Difficult to separate concerns
+- Example: try to write independent code for an http relation
+
+# As features are added to the charm,
+# this simple flow can become less simple.
+# A config-changed hook for example,
+# must react to changes to *any* the configuration
+# attributes. From being a simple script with
+# a single purpose, it starts to incorporate
+# varied concerns. Configuration options
+# for all relations and all charm behaviour sit
+# side by side.
+# 
+# When building software, I like to build well
+# understood components that can be composed
+# into larger components. With the base model
+# that's suggested by Juju, this seems hard to do.
+
+* Gocharm model
+
+- Single entry point
+- Register function for hook
+- One hook, many functions
+
+.code runhook-1.go
+
+# Here is a very simple example of a charm
+# written in Go. It's a little like a "main" package
+# in that there is a single well defined entry point,
+# the RegisterHooks function. It's the responsibility
+# of that function to register the code for any hooks
+# that the charm is interested to hear about.
+#
+# It is perfectly OK for many functions to be
+# registered for a given hook - when that
+# hook is invoked, all the registered functions
+# for that hook will be invoked in order (the
+# ordering is important, it turns out).
+#
+# We put this code inside a runhook.go file
+# (the name is just a convention) in a
+# Go package. It can live inside your $GOPATH,
+# in github, whereever. It can be compiled
+# and tested just like any normal Go package.
+# 
+# The only other thing that is needed for the
+# charm is a metadata.yaml file.
+
+* Gocharm metadata.yaml
+
+- metadata.yaml
+
+.code metadata-1.yaml
+
+Automatically generated
+
+- All hook files
+- relations metadata
+- config.yaml
+
+
+# This lives in the metadata.yaml file in the
+# package directory. Between this metadata.yaml
+# and the registration code, we have now
+# defined a complete Juju charm. This code
+# is not the actual charm itself, however.
+# To make it into a charm, we need to run
+# the gocharm command, which introspects
+# the package and actually builds the charm.
+
+* Building the charm
+
+	% cd $GOPATH/src/github.com/rogpeppe/gocharms-demo/mycharm-one
+	% gocharm -v
+	local:trusty/mycharm-one
+	% juju deploy local:trusty/gocharm
+
+# DEMO
+# So, I'll now build that charm that we just saw. We have
+# a running juju environment.
+# 
+#	cd $GOPATH/src/github.com/rogpeppe/gocharms-demo/mycharm-one
+#	gocharm
+#	juju deploy local:trusty/gocharm
+# 
+# <observe status change (or come back to it later)>
+
+* Acquiring context
+- Define a type for the charm.
+
+.code runhook-2.go /^type myCharm/,$	HL1
+
+# The charm we now have does absolutely nothing.
+# To do something (for instance to run hook tools)
+# we need a hook Context value.
+# To do this, we write a little bit of boilerplate
+# to store it for later use.
+# It's conventional to define a type to represent
+# the charm to hold our working state.
+
+* Acquiring context
+- Define a method to set the hook context.
+
+.code runhook-2.go /^type myCharm/,$	HL2
+
+# We define a method to set the context.
+
+* Acquiring context
+- Register the registerContext method.
+
+.code runhook-2.go /^type myCharm/,$	HL3
+
+
+# ... and tell the registry about it.
+
+* Using the context.
+
+.code runhook-2.go /^type myCharm/,$	HL4
+
+# When a hook actually runs,
+# we'll now get a call to registerContext telling us about
+# the hook context. The hook context
+# provides methods for all the usual stuff you can
+# do in a charm - you can get relation data, open ports,
+# etc. In this case, we just use it to set the status of the
+# charm.
+
+# DEMO
+
+# Let's try to deploy that charm.
+# 
+# 	cd ../mycharm-two
+# 	gocharm
+# 	juju deploy local:trusty/mycharm-two
+# 
+# We'll leave it for a little bit while it starts up.
+
+* Adding a relation
+
+- Import httprelation package.
+- Add a httprelation.Provider field.
+- Register it.
+
+.code runhook-3.go /^func RegisterHooks/,/^}/+/^}/
+
+# Let's suppose we want to implement an HTTP server.
+# First we want an HTTP relation. Luckily there's a
+# package that implements that relation already.
+# All we need to do is add its Provider type to our
+# charm type and register it. There's a little twist
+# to the registration process here - the Registry
+# must be cloned so that some of its features can
+# exist in a separate name space.
+#
+# We also want to know when we can start our
+# web server, so we implement another hook.
+# In this case, we don't necessarily know what hooks
+# the httprelation Provider is reacting to, so we
+# register a hook names "*", which says "run this
+# on any hook".
+
+# DEMO
+#
+#	cd ../mycharm-three
+#	gocharm
+#	juju deploy trusty/mycharm-three
+#
+
+* Running a web service
+
+# Now let's actually run a web service.
+# For those who of you who use Go,
+# this "hello, world" web server code fragment
+# will be quite familiar. If you write a web
+# server in Go, you almost certainly write
+# a function like this:
+
+.code runhook-4.go /^func helloHandler/,/^}/
+
+* Running a web service
+
+.code runhook-4.go /^type myCharm/,/^func .*changed/+/^}/
+
+# There's an easy way to use gocharm to run
+# this as a web service. Instead of using the
+# httprelation Provider directly, we use httpservice.Service.
+# This actually uses httprelation.Provider inside.
+#
+# Here we are actually re-using the Go binary in two
+# contexts - as a charm hook and as a long running
+# executable that is started by upstart.
+
+# final DEMO
+# 
+# 	cd ../mycharm-four
+# 	gocharm
+# 	juju deploy local:trusty/mycharm-four
+# 	juju expose mycharm-four
+# 	http <address>
+
+* Other features
+
+- Persistent state
+- Compile on demand
+
+# There are a few features I haven't had time
+# to talk about. Persistent hook state is built in
+# and trivial to use. Compile on demand means
+# that you don't need to cross-compile the juju
+# binary.
+
+* Future work
+
+- Cross-platform charms (e.g. Windows)
+- More complete set of relation packages
+- Zero-downtime services.
+- Testing
+
+* Caveats
+
+- Some features missing
+- Not for everyone
+
+# Newer features such as charm actions
+# aren't yet supported.
+#
+# The compiled nature of Go can make
+# it inappropriate - the charm binaries can
+# bloat the charm and make it considerably
+# slower to upload.
+
+* Conclusion
+
+- Modular
+- Composable
+- Self-contained
+- In Go!
+
+# We can write charms in Go in a modular, composable way.
+# We can deploy web services with no extra dependencies,
+# and charm development is quick, great for initial iterations.
