@@ -1,0 +1,190 @@
+MongoDB from Go
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* MongoDB
+
+- NoSQL database
+- No schemas
+- JSON-like data model
+
+* Mgo driver
+
+- By Gustavo Niemeyer
+- Also used by 10gen itself
+- High quality
+- Leverages Go's semi-dynamic typing
+- But some gotchas
+
+* Insert a record
+
+.play insert.go /^func main/,$
+
+* Fetch a single record
+
+.play queryone.go /var p person/,$
+
+* Fetch all at once
+
+.play queryall.go /\[]person/,$
+
+* Fetch many records space-efficiently
+
+.play queryiter.go /collection.Find/,$
+
+* Data model
+
+- BSON encoded
+- Note that you can see ASCII encoded fields
+
+.play queryraw.go /bson.Raw/,$
+
+* Data model
+
+- Almost (but not quite) the same as JSON
+- Separate types for int32, int64, time, others
+- We can get an insight by reading into interface{}
+
+.play queryinterface.go /interface{}/,$
+
+* Data model
+
+- Convenience type
+
+	type M map[string] interface{}
+
+	M{"key": someValue}
+
+- More efficient is "D"
+- Creating a slice is quicker than creating a map
+
+	type D []DocElem
+
+	type DocElem struct {
+		Name string
+		Value interface{}
+	}
+
+	D{{"key", someValue}}
+
+* Query by field value
+
+.play queryfield.go /bson\.M/,/iter\.Err/-1
+
+.link http://docs.mongodb.org/manual/reference/operator/query/
+
+* Many equivalent encodings
+
+.play queryfieldvariety.go /type gtCondition/,/ENDLOOP/
+
+* Let's make a web service!
+
+- Query latest status update
+
+	GET /latest
+
+- Update status
+
+	PUT /status/:user
+
+- Get status
+
+	GET /status/:user
+
+* Make a new type to handle requests
+
+- http.ServeMux is just one of many possible pattern matchers
+
+.code webservice.go /^type statusHandler/,/return mux/+1
+
+* Serve latest status
+
+.code webservice.go /^func.*serveLatest/,/^}/
+
+* Serve /status/:user
+
+.code webservice.go /^func.*serveStatus/,/^}/
+
+* Serve GET /status/:user
+
+.code webservice.go /^func.*serveGetStatus/,/^}/
+
+* Serve PUT /status/:user
+
+.code webservice.go /^func.*servePutStatus/,/^}/
+
+* Start the service
+
+.play webservice.go /^func main/,/^}/
+
+* BUT!
+
+.image wrong.gif
+
+* What happens over time?
+
+- Mongo bounces
+- Network connections fail
+
+* By default, mgo.Session does not cope
+
+Mgo implements connection pooling,
+but when a connection goes down
+it stays down.
+
+* Consistency
+
+- Strong
+
+Reads and writes will always be made to the primary server
+over the same connection.
+
+- Monotonic
+
+Reads can go to secondary; first write switches to primary.
+
+- Eventual
+
+Read from any secondary; write to primary.
+
+* The escape hatch
+
+- Session.Copy
+
+Just like making a new connection except very cheap.
+
+* Strategy
+
+- For each request, copy the session
+
+.play webservicesessioncopy.go /^func NewStatusHandler/,/^}/
+
+* But...
+
+- This is a lot slower than before
+- Particularly with bigger handlers
+- There's a way out!
+
+* The way out: sync.Pool
+
+- Create handler without the connection
+
+.code webservicesyncpool.go /^func newStatusHandler/,/^}/
+
+* Use sync.Pool to amortise creation time
+
+.code webservicesyncpool.go /POOL OMIT/,/ENDPOOL OMIT/
+
+* Use it
+
+.play webservicesyncpool.go /^func NewStatusHandler/,/^}/
+
+* Conclusion
+
+- Mongo is nice to use from Go
+- Easy to build simple web services
+- But watch out for that pitfall!
+
