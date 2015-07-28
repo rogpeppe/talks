@@ -1,0 +1,104 @@
+Equitable power
+Controlling renewable energy usage with a Raspberry Pi
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Building the hydroelectric scheme
+
+.image open-view-early-small.jpeg
+
+* Building the dam
+
+.image dam-early-small.jpeg
+
+* Dam now (6 months later)
+
+.image dam-later-small.jpeg
+
+* Generator shed
+
+.image shed-small.jpeg
+
+* Generator
+
+.image generator-small.jpeg
+
+* Hydroelectric generator
+
+- 50kW max
+- 89m head
+- 864m pipe
+- ~240 hectare catchment
+- Cost ~250K
+- Shared between two households
+- Very wet location, good output
+- Currently up and running
+- Payback 5 years???
+
+* Power usage
+
+- All power below 50kW is "free"
+- Want to avoid going above 50kW (each household) if possible
+- If overall use >50kW, cut discretionary power
+- Need intelligent controller
+- Nothing off the shelf.
+
+* Specification
+
+.image napkin-0.jpeg
+
+* Internet of things
+
+- Generator meter
+- House 1 meter
+- House 2 meter
+.link http://www.ndmeter.co.uk/files/IP_Meter_Operating_Manual1.pdf ND Metering
+
+- Relay controller (20 x 16A relays)
+.link http://www.robot-electronics.co.uk/htm/eth8020tech.htm ETH8020
+
+- Raspberry Pi
+.link https://www.raspberrypi.org/products/raspberry-pi-2-model-b/ Model B
+
+* Ubuntu Snappy
+
+- Designed for IoT
+- Transactional app updates
+- Early days
+- I get to play for free
+
+* Orange matchbox
+
+.image pi-sweety-bag-small.jpeg
+
+* Orange matchbox
+
+.image pi-assembly-small.jpeg
+
+* Orange matchbox fun pack
+
+- Raspberry Pi 2 (model B)
+- 8GB SD card with Snappy
+- PiGlow
+- Pibow case
+
+* System architecture
+
+.image sw-architecture.svg
+
+* Current state
+
+- Relay control working
+
+.link http://godoc.org/github.com/rogpeppe/hydro/eth8020 github.com/rogpeppe/hydro/eth8020
+
+- That's it so far!
+
+* Future decisions
+
+- Appropriate persistence layer?
+- Which web framework?
+- User interface!
