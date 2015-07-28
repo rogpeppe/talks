@@ -1,0 +1,649 @@
+Lovin' your errors
+How a little TLC pays back with interest.
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Most common phrase in Go?
+
+	if err != nil {
+		return err
+	}
+
+# Tonight I'm not going to introduce Go from first principles -
+# there are countless resources on the interwebs that
+# do that - but instead I'll focus on one particular aspect of Go
+# and in doing so I'll touch on some of Go's major language
+# features. I want to speak about errors in Go. To those
+# of you not familar with Go, its error handling policy is
+# one of the more controversial aspects of the language.
+# 
+# Unlike many other languages these days, Go forces
+# you to handle errors explicitly when they occur.
+# Instead of writing code like this:
+
+* If Go had exceptions
+
+	func doSomething() {
+		foo()
+		bar()
+		baz()
+	}
+
+# If Go had exceptions and we wanted to call three
+# functions in sequence, each of which might fail,
+# it would look something like this.
+
+* What we actually write
+
+	func doSomething() error {
+		if err := foo(); err != nil {
+			return err
+		}
+		if err := bar(); err != nil {
+			return err
+		}
+		if err := baz(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+# What we actually write in Go looks more
+# like this.
+#
+# Any function that can fail will return an error
+# value and by convention we check that error
+# value whenever we get it. Go allows multiple return values, so
+# this does not preclude returning other values too.
+# 
+# On the face of it, this is verbosely repetitive,
+# but I maintain that it's actually better than
+# the alternatives and this style can actually lead
+# to clearer error messages and more easily diagnosable
+# problems.
+
+* Why is this better?
+
+- Errors are important!
+- We spend lots of time looking at errors
+- A good error message can save days of work
+- Errors happen all the time
+
+* Robustness
+
+- Reasonable behaviour in small programs
+- ... but not in large ones.
+- Failure is common
+
+# In a simple program such as a shell script,
+# it is usually no problem to abort immediately
+# we encounter some unexpected condition.
+# 
+# But in larger programs, this *is* a problem because
+# unexpected conditions actually happen all the time.
+# For some reason that file doesn't exist any more,
+# or pulled out the network cable or...
+# 
+# We want to make programs that are robust under
+# unexpected conditions. A large part of this is to be
+# clear about the behaviour of the program when
+# those unexpected conditions happen,
+# and perhaps more importantly, so that it
+# the behaviour continues to be obvious
+# even after many cycles of software maintenance.
+# 
+# Let's take another look at that first piece of code:
+
+* Explicit makes readable
+
+- Is this function robust under failure?
+- With exceptions, I have no idea
+- In Go: yes!
+
+	func doSomething() {
+		foo()
+		bar()
+		baz()
+	}
+
+# Is this function robust?
+# 
+# In a language with exceptions, it is not clear
+# whether some or all of the above functions will be called.
+# If an exception happens inside foo, and we catch it
+# somewhere higher up the stack, what state
+# will the program be left in? Each place that
+# can raise an exception is in fact an implicit
+# exit point of the function, but it's hard to write
+# programs keeping that in mind at all times.
+
+* Maintainability
+
+- Principle attributed to Jonathon Blow:
+- Making small logical changes should not require/result in wildly varying program code
+- Rather, changes should be as small as possible
+
+# Some languages provide a way to chain a bunch
+# of functions without using exceptions.
+# If any of you have used Haskell, you might
+# be aware of its Error monad. This looks great
+# on the surface, but there's a problem with it:
+# it lumps all the errors together into one
+# homogenous set. But errors aren't actually like
+# that. It's much more common to have a
+# heterogeneous set of operations, each of which
+# can fail in different ways. And more importantly,
+# the appropriate responses to each failure
+# will vary. 
+
+* Panic
+
+- Go actually does have exceptions
+- Reserved for truly exceptional situations
+- Never part of a public interface
+- Instead, consider each error individually
+
+# As an aside, Go *does* actually have exceptions,
+# though they're not used quite the same as in
+# other languages. They're called "panics" and are
+# reserved for truly exceptional situations such as
+# divide by zero and nil-pointer accesses. Instead,
+# of using them as a matter of course the policy
+# is that you handle errors immediately you find them.
+# 
+# In practice this means that every time you
+# call a function or a method that returns an error,
+# you write a little fragment of code that is explicitly
+# devoted to handling that particular error case.
+# Instead of leaving the exit points implicit, we
+# make them explicitly visible. Some might call
+# the result ugly, but it's actually showing you the
+# real control flow of the program, and that
+# makes it much easier to maintain and manipulate
+# the program over time.
+# 
+# I like to think of that little fragment of code as
+# a tiny little meditation on what that error really
+# means for that program at that moment.
+# 
+# There are a few common possibilities for what to do
+# when you get an error.
+
+* Handle those errors!
+
+- Panic
+- Return
+- Ignore
+- Log
+- Gather
+- Diagnose
+
+* Panic
+
+- When an error really should not happen
+- Broken internal invariants
+- Initialisation errors
+
+	// MustCompile is like Compile but panics if the expression cannot be parsed.
+	// It simplifies safe initialization of global variables holding compiled regular
+	// expressions.
+	func MustCompile(str string) *Regexp {
+		regexp, error := Compile(str)
+		if error != nil {
+			panic(`regexp: Compile(` + quote(str) + `): ` + error.Error())
+		}
+		return regexp
+	}
+
+
+# I've already talked a little about panic. It is reserved for when an error
+# really is unexpected, for instance when the error implies that some internal invariant of the
+# program has been broken. Another common use is when errors are
+# encountered initializing the program.
+# 
+# In general though, DON'T PANIC! 
+
+* Return
+
+- Most common option
+- Maligned but can actually add value (wait and see)
+
+# Return is probably the most common action to take. We
+# pass the buck back to our caller.  There are actually a few further
+# possibilities here, which I'll go into later.
+
+	if err != nil {
+		return err
+	}
+
+* Ignore
+
+- Generally frowned upon
+- Errors are usually returned for good reason
+- But sometimes it's OK (bytes.Buffer, log messages)
+- There's a tool that can can check for you
+
+	go get github.com/kisielk/errcheck
+	% errcheck ./...
+	agent/agent.go:654:11	buf.Write(data)
+	agent/bootstrap.go:96:12	st.Close()
+	agent/identity.go:29:12	os.Remove(c.SystemIdentityPath())
+	agent/tools/toolsdir.go:57:16	defer zr.Close()
+
+# The third, ignore, is generally frowned upon. If something returns
+# an error, it's usually for good reason.  But there are exceptions to
+# the rule - some interfaces will be defined with methods that return an
+# error, but particular implementations may not.  A good example is the
+# bytes.Buffer type. It implements io.Writer (which can return an error),
+# but it's documented that it never will, so it is pointless to check
+# the error.  Other examples include checking the error from writing log
+# messages and other cases where there's not much useful that can be done
+# in case of failure. For example, what are we supposed to do if we
+# get an error when closing a file that we have opened for reading?
+
+* Log
+
+- When you want to carry on regardless
+- Usually in high level logic
+- Need to choose a logging framework.
+
+# Logging the error is usually done in situations where you need to
+# carry on regardless, but you want someone to know about the issue.
+# It's commonly seen at the top level of goroutines, in high level loops
+# and in places where some secondary action fails but we don't deem that
+# failure important enough to abort the primary action.
+
+	// IncCounterAsync increases by one the counter associated with the composed
+	// key. The action is done in the background using a separate goroutine.
+	func (s *Store) IncCounterAsync(key []string) {
+		s.Go(func(s *Store) {
+			if err := s.IncCounter(key); err != nil {
+				logger.Errorf("cannot increase stats counter for key %v: %v", key, err)
+			}
+		})
+	}
+	
+* Gather
+
+- Common in concurrent situations
+- Could just choose the first one
+- Or make an error that holds them all
+- ... but that can end up unreadable.
+
+	// Errors holds any errors encountered during the parallel run.
+	type Errors []error
+	
+	func (errs Errors) Error() string {
+		switch len(errs) {
+		case 0:
+			return "no error"
+		case 1:
+			return errs[0].Error()
+		}
+		return fmt.Sprintf("%s (and %d more)", errs[0].Error(), len(errs)-1)
+	}
+
+# Sometimes you're in a situation where there are a bunch
+# of errors that are all equally important. Perhaps you're
+# syntax checking a file and want to see all the errors rather than
+# just the first one. Another common possibility is that you
+# have fired off a bunch of concurrent tasks and as they complete,
+# each one can return an error. There is no universally correct
+# answer here - you'll have to decide what your individual
+# situation merits. I've included one solution here - a slice
+# of errors. It makes all the errors available to the caller,
+# but only shows the first one by default.
+
+* Diagnose
+
+- "Identify the nature of a problem by examination of the symptoms"
+- Actually relatively unusual
+
+# The last tactic I call "diagnosis". You write some code
+# to react to specific kinds of errors and take appropriate
+# action. For example, when opening a file, we might decide
+# to ignore the file if it does not exist, but return an error
+# if it can't be opened for some other reason.
+# 
+# I'd like to emphasise that this technique accounts for
+# only a very small proportion of error handling code,
+# but because errors almost always represent a seldom-taken
+# code path, it's important that we do it right.
+#
+# There are a variety of techniques used in Go for
+# creating diagnosable errors.
+
+* Diagnosis techniques 1 - special value
+
+- Define a specific error value.
+- Classical example: io.EOF
+- Useful when we don't need any more info
+- Very cheap
+
+	var ErrNotFound = errors.New("not found")
+
+	err := environments.Find(bson.D{{"_id", id}}).One(&env)
+	if err == mgo.ErrNotFound {
+		return nil
+	}
+
+# The first and easiest technique is to define an
+# error value with a specific meaning. The classical
+# example is io.EOF, used by almost every Go
+# package that deals with I/O. I've shown an
+# example from Gustavo Niemeyer's excellent
+# mgo package here.
+
+* Diagnosis techniques 2 - special type
+
+- Define a special error type
+- Error is just an interface with a single method
+- Classical example: os.PathError
+
+	type PathError struct {
+	        Op   string
+	        Path string
+	        Err  error
+	}
+	
+	func (e *PathError) Error() string {
+		return e.Op + " " + e.Path + ": " + e.Err.Error()
+	}
+	
+		err := os.Create("/tmp/something")
+		if err, ok := err.(*os.PathError); ok {
+		}
+
+# Another common technique is to define
+# an error type to hold custom information.
+# In this example from the os package, contextual
+# information containing the file path is
+# added to some underlying error. This
+# is actually a common pattern and I'll expand
+# on an alternative way of doing this later.
+
+* Diagnosis techniques 3 - interface
+
+- Extensible to multiple types/values
+
+	type Error interface {
+	        error
+	        Timeout() bool   // Is the error a timeout?
+	        Temporary() bool // Is the error temporary?
+	}
+
+	if err, ok := err.(net.Error); ok && err.Temporary() {
+		...
+	}
+
+# Here's another technique. We define an interface type
+# that can represent our error. As with any Go interface type,
+# it is satisfied by any value that implements the
+# requisite methods, in this case Error (from the embedded
+# error type), Timeout and Temporary. This is more
+# flexible than, but also complementary to the two
+# techniques I've just talked about, as it can apply
+# many different types and values (and third party
+# errors can also be written to fit in with it).
+
+* Diagnosis techniques 4 - function predicate
+
+- Allows arbitrary logic
+- Classical example: os.IsNotExist
+
+	func IsNotExist(err error) bool {
+		switch pe := err.(type) {
+		case nil:
+			return false
+		case *PathError:
+			err = pe.Err
+		case *LinkError:
+			err = pe.Err
+		}
+		return err == syscall.ENOENT || err == ErrNotExist
+	}
+
+# The last technique that's used is to define
+# a predicate (or boolean-returning) function
+# that diagnoses a particular kind of error.
+# This is the most flexible technique as it can
+# mix and match all the previous ones.
+# I've included an example from the os package
+# where it checks the type of the error,
+# and does a check that depends on what
+# it finds.
+
+* Why so many techniques?
+
+- Each one has its own trade-offs.
+- Error is always interpreted in context...
+- ... because it comes from a single source
+- Properly modular ...
+- ... except when many places just return the error
+
+# Why do we have so many techniques for diagnosing
+# errors? Well, each one has its own benefits and drawbacks.
+# For example, a special error value is unable to contain
+# any contextual information, but is essentially zero cost
+# to create.
+# The reason this variety of techniques does not present
+# a problem in practice is precisely because Go encourages
+# local handling of errors: at any point
+# I know what I'm doing and exactly where the error is coming
+# from. Unlike with exceptions where the default case is that
+# the exception may be coming from any one of many functions,
+# in Go, an error always comes from exactly one source,
+# the function we're calling.
+# 
+# Techniques can be project-local because of this, which leaves
+# us free to try out new techniques.
+
+* Recap
+
+- Errors indicate some failure
+- Influence control flow
+- Are used in context
+- Also used to _describe_ errors
+
+# So, to recap on what I've said so far, errors indicate
+# *some* form of failure, whether it's almost inevitable
+# (for example io.EOF) or will probably never happen.
+# We look at returned errors and they usually influence our
+# program's control flow in some way. Because we handle
+# errors immediately, we know the *context* of each
+# error - where the error has come from and what we were
+# trying to do at the time.
+#
+# There's another aspect of errors I haven't
+# gone into yet - the error message is often used as
+# a description to humans of what went wrong.
+
+* Annotated error messages
+
+- Like a backwards stack
+- Usually added by return statements
+- Works well with concurrency
+
+	if err != nil {
+		return "", fmt.Errorf("cannot read random secret: %v", err)
+	}
+
+# To make errors more useful for human consumption,
+# we often annotate them with contextual information.
+# For example, here's some code that is reading
+# some bytes from a random source and making
+# it clear when it fails that that's what it was doing.
+# Instead of some system-specific error message,
+# syscall.EINVAL "invalid argument", we'll get
+# a message that points much more clearly to the
+# problem and hence the likely solution.
+#
+# Where a conventional exception backtrace holds the
+# stack of the functions that were called *before* the
+# error happened, annotations form a kind of backwards
+# (or post-order) stack, showing what happened
+# as the error made its way back to the user.
+# This actually works really well in Go, as the stack trace
+# may not reflect the error path at all, because
+# errors can (and are) be freely passed between goroutines.
+
+* Errors with concurrency
+
+	for {
+		select {
+		case msg := <-msgChan:
+			err := doSomething(msg.params)
+			msg.reply <- fmt.Errorf("cannot do something: %v", err)
+		...
+		}
+	}
+
+# Here's an example of a classic Go concurrency pattern.
+# We've got a goroutine in an ever-repeating loop,
+# servicing requests that are sent on an incoming
+# channel, and sending replies back when it has serviced
+# them. If we just recorded the initial stack trace, we quite
+# likely end up with something very uninteresting,
+# as it would reflect everything about how that
+# goroutine was set up, but not much about the
+# context of that error.
+#
+# By explicitly annotating, we avoid that issue.
+
+* If everyone annotates, we get nice messages
+
+- Message reads like a story
+- cannot read random secret  _because_of_ unexpected EOF
+
+	"cannot read random secret: unexpected EOF"
+
+* If no-one annotates, error messages are less useful
+
+- True story
+- Click on Login, got reply "EOF"
+- Error actually traversed 13 stack levels
+- Could have been
+
+	cannot get login entity:
+	cannot get user "admin":
+	mongo query failed:
+	cannot acquire socket:
+	cannot log in:
+	error authorizing user "admin":
+	request failed:
+	cannot read reply:
+	EOF
+
+* But...!
+
+- Annotation obscures diagnosis
+- Either return custom value/type
+- ... or hide the diagnosis entirely
+
+	err := fmt.Errorf("cannot open file: %v", err)
+	if os.IsNotExist(err) {
+		// never reached
+	}
+
+* An augmented approach
+
+- gopkg.in/errgo.v1
+- Cause-preserving annotation
+- Records source location
+- Agnostic about actual errors
+- Can use all the existing techniques
+
+* Annotation in errgo
+
+- Similar to fmt.Errorf
+- Also records source location
+
+	if err != nil {
+		return errgo.Notef(err, "cannot read random secret")
+	}
+
+* Diagnosis in errgo
+
+- Cause function works on any error
+- Returns underlying cause, ignoring annotations
+- Default cause is error itself
+
+	if errgo.Cause(err) == io.UnexpectedEOF {
+		...
+	}
+
+	if os.IsNotExist(errgo.Cause(err)) {
+		...
+	}
+
+* Cause is masked by default
+
+- Constrains possible causes
+- Error causes are part of API
+- Explicit is much better for maintenance
+
+* Causes with errgo: simplest case
+
+- Record the source location
+- Mask the cause
+
+	return errgo.Mask(err)
+
+* Causes with errgo: mask predicates
+
+- Record source location
+- Preserve selected causes
+- Predicate function allows specific causes
+
+	// Preserve any cause
+	return errgo.Mask(err, errgo.Any)
+
+	// Preserve only some causes
+	return errgo.Mask(err, os.IsNotExist, os.IsPermission)
+
+* Causes with errgo: annotate and mask
+
+- Record source location
+- Add annotation
+- Preserve selected causes
+
+	return errgo.NoteMask(err, "cannot open database file", os.IsNotExist)
+
+* Causes with errgo: choice of cause
+
+- Choose another cause
+- Add annotation
+
+	if err == mgo.IsNotFound {
+		return errgo.WithCausef(err, params.ErrNotFound, "no such document")
+	}
+
+* Error printing in errgo:
+
+	fmt.Printf("%v\n", err)
+
+	cannot encrypt password: cannot read random secret: unexpected EOF
+
+	fmt.Printf("%#v", err)
+	
+	[{/home/rog/src/github.com/juju/utils/encrypt.go:97: cannot encrypt password}
+	{/home/rog/src/github.com/juju/utils/password.go:32: cannot read random secret}
+	{unexpected EOF}]
+
+* errgo data structure
+
+.image errgo.svg _ 800
+
+# https://docs.google.com/drawings/d/1aqP2sDX3XeP7zqbDgXz1TBNe3JzgrdB1wjF1XqfFJiM
+
+* Conclusion
+
+- If you pay attention to your errors, you will be rewarded.
+- Existing practice leaves something to be desired.
+- It's possible to do better *and* stay compatible with existing practice.
+
+# Over and over again I've found this technique
+# to be very useful.
