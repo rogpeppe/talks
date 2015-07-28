@@ -137,7 +137,7 @@ it stays down.
 
 * Consistency
 
-- Strong
+- Strong (default)
 
 Reads and writes will always be made to the primary server
 over the same connection.
