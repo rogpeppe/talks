@@ -83,6 +83,7 @@ func (h *statusHandler) servePutStatus(w http.ResponseWriter, req *http.Request,
 	}}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	log.Printf("inserted %q", name)
 }
 
 func (h *statusHandler) serveGetStatus(w http.ResponseWriter, req *http.Request, name string) {

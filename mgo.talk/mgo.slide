@@ -21,11 +21,15 @@ rogpeppe@gmail.com
 
 * Insert a record
 
-.play insert.go /^func main/,$
+.play insert.go /^type person/,$
 
 * Fetch a single record
 
 .play queryone.go /var p person/,$
+
+Useful package:
+
+.link http://godoc.org/github.com/kr/pretty github.com/kr/pretty
 
 * Fetch all at once
 
@@ -119,6 +123,10 @@ rogpeppe@gmail.com
 * Start the service
 
 .play webservice.go /^func main/,/^}/
+
+- Try it!
+- PUT http://192.168.7.17:55667/status/$name
+- curl http://192.168.7.17:55667/latest
 
 * BUT!
 
