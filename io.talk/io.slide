@@ -1,0 +1,263 @@
+Plug and play I/O in Go
+(and a little bit of crypto)
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Input/output
+
+- Read stream of bytes
+- Write stream of bytes
+- For efficiency, we don't do it one byte at a time
+
+* Classic examples
+
+- Files
+- Network connections
+- Attached devices
+- Unix pipes
+
+* io.Writer
+
+- Writes a slice of bytes.
+- Must try to write all the bytes,
+- Error if not.
+
+	package io
+	type Writer interface {
+		Write(buf []byte) (n int, err error)
+	}
+
+* io.Writer usage example:
+
+- Note: one of the very few cases it can be OK to ignore errors.
+
+.play writer-example.go
+
+* io.Reader
+
+- Read into the slice.
+- Read as many bytes as are immediately available...
+- ... or block until at least 1 byte available.
+- Return io.EOF at end of stream.
+- Note: always pay attention to n!
+
+	package io
+	type Reader interface {
+		Read(buf []byte) (n int, err error)
+	}
+
+* io.Reader usage example:
+
+.play reader-example.go
+
+* Easy for any type to implement
+
+- For example, let's implement a reader for a string
+- (see also strings.NewReader and friends)
+
+.play string-reader.go /StringReader implements/,$
+
+* Read all the things
+
+.play string-reader.go /^func main/,/^}/
+
+* That's the lowest level
+
+- Now the fun begins!
+- We can combine readers and writers in interesting ways.
+- For example, streaming copy:
+
+.play string-reader-io-copy.go /^func main/,/^}/
+
+* Readers and writers in the standard library
+
+- bytes.Buffer, bytes.Reader, strings.Reader
+- bufio.Reader, bufio.Writer
+- JSON, XML decoder, encoder
+- gzip.Reader, gzip.Writer
+- net.Conn
+- http.Request.Body, http.ResponseWriter
+- io.*
+- crypto/sha1, crypto/md5, etc
+
+* Plugging them together
+
+- io.Copy
+- io.MultiReader
+- io.MultiWriter
+- io.TeeReader
+- io.Pipe
+- io.LimitReader
+
+* For example, compression:
+
+.play string-reader-compress.go /^func main/,/^}/
+
+* Sources and sinks
+
+	Source() io.Reader
+	Source(io.Writer)
+
+	Sink() io.Writer
+	Sink(io.Reader)
+
+- A *source* produces data.
+- A *sink* absorbs it.
+- We want to be able to plug any source into any sink...
+- ... but sometimes what you have isn't what you want.
+- The previous slide showed a common example.
+
+* Example source (1)
+
+	package os
+
+	// Open opens the named file for reading.
+	func Open(name string) (*File, error)
+
+* Example source (2)
+
+	// Execute applies a parsed template to the specified data object,
+	// and writes the output to wr.
+	func (t *Template) Execute(wr io.Writer, data interface{}) (err error)
+
+* Example sink (1)
+
+	package sha1
+
+	// New returns a new hash.Hash computing the SHA1 checksum.
+	func New() hash.Hash
+
+	type Hash interface {
+	        // Write (via the embedded io.Writer interface) adds more data to the running hash.
+	        // It never returns an error.
+	        io.Writer
+	
+	        // Sum appends the current hash to b and returns the resulting slice.
+	        // It does not change the underlying hash state.
+	        Sum(b []byte) []byte
+	
+	        // Reset resets the Hash to its initial state.
+	        Reset()
+	
+	        // Size returns the number of bytes Sum will return.
+	        Size() int
+
+	        BlockSize() int
+	}
+
+* Example sink (2)
+
+	package ioutil
+
+	// ReadAll reads from r until an error or EOF and returns the data it read.
+	func ReadAll(r io.Reader) ([]byte, error)
+
+* Plug them together
+
+- Let's try all possible combinations of the previous four primitives.
+
+* Plug them together (1)
+
+	Source() io.Reader
+	Sink(io.Reader)
+
+	Sink(Source())
+
+.play plug1.go /^func main/,$
+
+* Plug them together (2)
+
+	Source(io.Writer)
+	Sink() io.Writer
+
+* Plug them together (2)
+
+.play plug2.go /bottleTemplate/,$
+
+* Plug them together (3)
+
+- Both sides are passive, so we use the current goroutine as a driver.
+
+	Source() io.Reader
+	Sink() io.Writer
+
+	r := Source()
+	w := Sink()
+	io.Copy(w, r)
+	
+* Plug them together (3)
+
+.play plug3.go /^func main/,$
+
+* Plug them together (4)
+
+- Both sides are active, so we need to let them both run concurrently.
+
+	r, w := io.Pipe()
+	go func() {
+		Source(w)
+		w.Close()
+	}()
+	Sink(r)
+
+* Plug them together (4)
+
+.play plug4.go /^func main/,$
+
+* Now some crypto!
+
+- Take the above template.
+- Compress it.
+- Encrypt it.
+- Generate a secure hash of that.
+- Base-64 encode it.
+- All streaming (the template might be huge)
+
+* Ingredients
+
+- template.Execute
+- gzip.NewWriter
+- cipher.StreamCipher
+- sha1.New
+- base64.NewEncoder
+
+* Plug the pieces together
+
+.play encrypt.go /^func generate/,/TEMPLATE/
+
+* Run the template through it
+
+.play encrypt.go /TEMPLATE/,/^}/
+
+* Encryption details
+
+.play encrypt.go /^func newEncrypter/,/^}/
+
+* High level
+
+.play encrypt.go /^func main/,/^}/
+
+* Let's do it with lots of data!
+
+.code encrypt-large.go /bottleTemplate/,/^`/
+
+.play encrypt-large.go /TEMPLATE/,/^}/
+
+* To decrypt, just do it in reverse
+
+.code decrypt.go /^func readEncrypted/,/CHECKSUM/
+
+* Verify the checksum
+
+.code decrypt.go /CHECKSUM/,/^}/
+
+* Decryption details
+
+.code decrypt.go /^func newDecrypter/,/^}/
+
+* See if it works...
+
+.play decrypt.go /^func main/,/^}/
