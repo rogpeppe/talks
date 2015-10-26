@@ -147,7 +147,11 @@ Program value with expectations of calls.
 
 * Setting up the fake
 
-.play fakehttpget2.go /^func TestGetURLAsStringHTTPGetError/,/http:\/\//-1
+.code fakehttpget2.go /^func TestGetURLAsStringHTTPGetError/,/http:\/\//-1
+
+* Using the fake
+
+.play fakehttpget2.go /http:\/\//,/^}/
 
 * Add convenience: use PatchValue function
 
@@ -186,4 +190,5 @@ Program value with expectations of calls.
 * Conclusion
 
 - Even though Go is statically typed, we can still fake things.
+- It's viable to attain near 100% test coverage.
 - It can be convenient to use testing helpers.
