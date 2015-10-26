@@ -29,7 +29,8 @@ rogpeppe@gmail.com
 
 - Slows down development.
 - Tests are more code that needs to be maintained.
-- Make your tests count!
+
+Make your tests count!
 
 * Why is Go different?
 
@@ -66,7 +67,7 @@ Like real object (except viable to use in test)
 
 - Stub
 
-Canned answer. May record call.
+Canned answer. May record information about the call.
 
 - Dummy
 
@@ -74,7 +75,7 @@ Objects passed around but never actually used.
 
 - Mock
 
-Program with expectations of calls.
+Program value with expectations of calls.
 
 * Techniques
 
@@ -176,3 +177,13 @@ Program with expectations of calls.
 		jujutesting.CleanupSuite
 	}
 
+* Still remaining to test
+
+- Body read error
+- Check that body is closed.
+- See github.com/rogpeppe/httpfetch for the whole thing.
+
+* Conclusion
+
+- Even though Go is statically typed, we can still fake things.
+- It can be convenient to use testing helpers.
