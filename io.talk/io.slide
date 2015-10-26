@@ -6,6 +6,16 @@ Canonical Ltd
 rogpeppe@gmail.com
 @rogpeppe
 
+* This talk
+
+- I/O in Go is simple and powerful
+- It also epitomises how interfaces can be used well
+- Start with low level code; end at high level
+- All examples are complete.
+- http://talks.godoc.org/github.com/rogpeppe/talks/io.talk/io.slide
+- git clone git@github.com:rogpeppe/talks
+- go get golang.org/x/tools/cmd/present
+
 * Input/output
 
 - Read stream of bytes
@@ -58,7 +68,7 @@ rogpeppe@gmail.com
 - For example, let's implement a reader for a string
 - (see also strings.NewReader and friends)
 
-.play string-reader.go /StringReader implements/,$
+.code string-reader.go /StringReader implements/,$
 
 * Read all the things
 
@@ -172,6 +182,8 @@ rogpeppe@gmail.com
 
 	Source(io.Writer)
 	Sink() io.Writer
+
+	Source(Sink())
 
 * Plug them together (2)
 

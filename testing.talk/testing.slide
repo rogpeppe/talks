@@ -1,0 +1,178 @@
+Faking it:
+How to gain confidence in your code without running it for real.
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* This talk
+
+- Opinionated.
+- What we are trying to do when we test.
+- Fake/stub objects in Go.
+- How to write effective tests.
+- About faking _not_ mocking (see later).
+
+* My experience with Go testing
+
+- Contributor to Go project since it came out.
+- Dev/maintainer of some well used projects (e.g. godef).
+- Juju developer (now ~800Kloc) for 4 years.
+
+* Why do we test?
+
+- To have confidence that our code works.
+- ... and that it will _continue_ to work!
+
+* Down sides of testing
+
+- Slows down development.
+- Tests are more code that needs to be maintained.
+- Make your tests count!
+
+* Why is Go different?
+
+- Go is statically typed.
+- Makes a big difference to confidence.
+- Even more so when refactoring.
+- Less need to test with different types.
+- But interfaces give freedom.
+
+* My approach
+
+- Ideally all tests would be external functional tests.
+- Enables significant refactoring while keeping regression tests.
+- Gives best confidence.
+- But not always attainable.
+
+* Down sides of external functional tests
+
+- Can involve a great deal of setup to test small amount of code.
+- Tests can be slow.
+- We want to run tests without external interaction.
+
+* Compromise
+
+- Replace a small number of implementation details.
+- Try not to affect the code too much.
+- Fake/mock as little as possible.
+
+* Terminology (courtesy of Martin Fowler)
+
+- Fake
+
+Like real object (except viable to use in test)
+
+- Stub
+
+Canned answer. May record call.
+
+- Dummy
+
+Objects passed around but never actually used.
+
+- Mock
+
+Program with expectations of calls.
+
+* Techniques
+
+- Separation of concerns.
+- Define the code in terms of external interface.
+- Run local server.
+- Indirect through globals.
+- Define private API.
+
+* Separation of concerns
+
+- Think of an idea that makes sense on its own.
+- That's a good boundary for a Go package.
+- Less churn in both production and test code.
+- Test points often present themselves naturally.
+
+* Define code in terms of external interface
+
+- Classic example: I/O
+- "I have have useful functionality with interface-shaped hole".
+
+* Run local server
+
+- Useful to fake interaction with remote server.
+- Cheaper than you might think.
+- No need to compromise code for tests.
+
+* Example
+
+- Fetch contents of URL.
+- Aim for 100% test coverage.
+
+.code src/github.com/rogpeppe/httpfetch/get.go /^\/\/ GetURLAs/,/^}/
+
+* Test success case
+
+.code src/github.com/rogpeppe/httpfetch/get_test.go 1,/^func Test/
+
+* Test success case
+
+.play testsuccess.go /^func TestGetURLAsStringSuccess/,/^}/
+
+* Test failure
+.play testnotfound1.go /^func TestGetURLAsStringNotFound/,/^}/
+
+* Fix the bug
+
+.code get2.go /^func GetURL/,$
+
+* Try again
+
+.play testnotfound2.go /^func TestGetURLAsStringNotFound/,/^}/
+
+* Faking http.Get
+
+- (We could change http.DefaultTransport instead)
+
+.code fakehttpget.go /^var httpGet/,/httpGet\(/
+
+* Exporting the fake
+
+- Not always necessary.
+- But keeps things clean.
+- in export_test.go:
+
+	package httpfetch
+
+	var HTTPGet = &httpGet
+
+* Setting up the fake
+
+.play fakehttpget2.go /^func TestGetURLAsStringHTTPGetError/,/http:\/\//-1
+
+* Add convenience: use PatchValue function
+
+.play fakehttpget3.go /^func TestGetURLAsStringHTTPGetError/,/Restore/
+
+* More convenience: use gocheck
+
+.play fakehttpgetgocheck.go /TestGetURLAsStringHTTPGetError/,/^}/
+
+
+* gocheck boilerplate
+
+	package httpfetch_test
+	
+	import (
+		jujutesting "github.com/juju/testing"
+		gc "gopkg.in/check.v1"
+	)
+	
+	func TestPackage(t *testing.T) {
+		gc.TestingT(t)
+	}
+	
+	var _ = gc.Suite(&suite{})
+	
+	type suite struct {
+		jujutesting.CleanupSuite
+	}
+

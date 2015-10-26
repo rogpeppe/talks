@@ -6,9 +6,9 @@ import (
 	"crypto/cipher"
 	"crypto/sha1"
 	"crypto/sha256"
-	"hash"
 	"encoding/base64"
 	"fmt"
+	"hash"
 	"io"
 	"log"
 	"os"
@@ -32,7 +32,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer outFile.Close()
-	
+
 	hash, err := generate(outFile)
 	if err != nil {
 		log.Fatal(err)

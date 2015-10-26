@@ -13,6 +13,6 @@ func main() {
 	}
 	buf := make([]byte, 30)
 	n, err := f.Read(buf)
-	fmt.Printf("read %d bytes (%q)\n", n, buf[0:n])
-	fmt.Printf("error %v\n", err)
+	fmt.Printf("read %d bytes: %q\n", n, buf[0:n])
+	fmt.Printf("error: %v\n", err)
 }
