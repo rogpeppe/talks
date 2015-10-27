@@ -95,7 +95,7 @@ Program value with expectations of calls.
 * Define code in terms of external interface
 
 - Classic example: I/O
-- "I have have useful functionality with interface-shaped hole".
+- "I have useful functionality with an interface-shaped hole".
 
 * Run local server
 
