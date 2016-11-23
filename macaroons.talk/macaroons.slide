@@ -1,0 +1,196 @@
+Obviously correct versus not obviously incorrect
+Building secure microservices with macaroons
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Correctness
+
+There are two ways of constructing a software design.
+One way is to make it so simple that there are obviously no deficiencies.
+And the other way is to make it so complicated that there are no obvious deficiencies.
+-- C.A.R. Hoare
+
+* Goals
+
+- Look at the code and have confidence in its security.
+- Change security properties without changing business logic.
+- Services can talk to one another securely.
+- No "root" credentials - distributed security.
+
+* Cookies and security
+
+- Ubiquitous in web services
+- Used as bearer tokens.
+- You have a cookie, you have some capability.
+- Vulnerable to stealing.
+
+* Macaroons
+
+- "like cookies but tastier"
+- Like cookies, they are bearer tokens.
+- Unlike cookies they have _caveats_.
+- Anyone can attach a caveat.
+- Caveats _attenuate_ security.
+
+* Macaroon crypto basis
+
+- Secret keys (192 bit random)
+- Secure hashing (SHA256 HMAC)
+- Symmetric crypto (XSalsa20, Poly1305)
+- Some (optional) public key crypto (Curve25519, XSalsa20, Poly1305)
+
+* Macaroon construction
+
+- Hash chain.
+- Take a secret "root key".
+- Use it as key to hash the macaroon id.
+- The result is the macaroon _signature_, S
+- To add a caveat X, make a new signature HMAC(S, X)
+- Throw away old signature.
+
+* In Go!
+
+.play newmacaroon.go
+
+* Third party caveats
+
+- "OK if and only if this other party agrees".
+- Each third party caveat "discharged" with another macaroon.
+- Can also be added by anyone.
+- Client is responsible for obtaining discharge.
+
+* Bearer credentials
+
+.image bearer-credentials.png
+
+* Caveats
+
+.image caveats.png
+
+* Can be redundant
+
+.image caveats-redundant.png
+
+* Can be overlapping
+
+.image caveats-overlapping.png
+
+* Contextual caveats
+
+.image caveats-contextual.png
+
+* Now what?
+
+- A nice primitive but how to use it?
+- Our first attempt focused on authentication.
+- Third party caveat to identity service
+
+"Allow access if and only if this other party says they're a valid user (and by the way, I want the user name too please)."
+
+* Limitations of authentication
+
+- Delegation
+- "Confused deputy" issue
+
+.link http://www.hpl.hp.com/techreports/2009/HPL-2009-20.pdf "ACLs don't (Tyler Close, 2009)"
+
+"The ACL model is unable to make correct access decisions for interactions
+involving more than two principals, since required information is not
+retained across message sends. Though this deficiency has long been
+documented in the published literature, it is not widely understood. This
+logic error in the ACL model is exploited by both the clickjacking and
+CrossSite Request Forgery attacks that affect many Web applications."
+
+* But...
+
+- Authentication makes a great starting point
+- Use authentication to acquire capabilities.
+- Delegate the capabilities.
+- Capabilities can be short-lived.
+- Capabilities can be closely tied to resources.
+
+* The Bakery
+
+- Brand new API.
+- Higher level package.
+- Opinionated but flexible.
+- Built on largely orthogonal interfaces.
+- Reusable implementations.
+
+* Identity
+
+	type IdentityClient interface {
+		IdentityFromContext(ctxt context.Context) (Identity, []checkers.Caveat, error)
+		DeclaredIdentity(declared map[string]string) (Identity, error)
+	}
+
+- Identity may reside in context (e.g. user/password)
+- Or we may return third-party caveat.
+- When we've checked caveat, DeclaredIdentity retrieves info.
+
+* Authorizer
+
+	type Authorizer interface {
+		Authorize(ctxt context.Context, id Identity, ops []Op) (allowed []bool, caveats []checkers.Caveat, err error)
+	}
+
+- "Do we authorize this identity to perform these operations?"
+- Some operations may require approval from a third party.
+
+* Example: a HTTP "filesystem"
+
+.code auth0.go /^type Content struct {/,/^}//^}/
+
+* Example: a HTTP "filesystem"
+
+.code auth0.go /Content\) Put\(/,/^}/ 	
+
+* Example: a HTTP "filesystem"
+
+.code auth0.go /Content\) Get\(/,/^}/
+
+* Example: a HTTP "filesystem"
+
+.code auth0.go /^type ContentHandler/,/"GET"/-1
+
+* Example: a HTTP "filesystem"
+
+.play auth0.go /^type ContentHandler//"GET"/,/^}/
+
+* Now add security
+
+.code auth1.go /^\/\/ opsForRequest/,/^}
+
+* All parent directories
+
+.code auth1.go /^\/\/ parents/,/^}/
+
+* Security middleware
+
+.play auth1.go /^func authHandler/,/^}/
+
+* Add authorization
+
+.play auth2.go /^func main/,/^}/
+
+* Challenges
+
+- Browser
+- Logout
+
+* Conclusion
+
+- We can factor out security concerns into reusable components
+- We can isolate into easily testable parts
+- This opens up a whole world of possibility.
+
+* References
+
+Tony Arcieri
+Macaroons: A better kind of cookie
+https://www.youtube.com/watch?v=bFn-wjQtxZ0
+
+	

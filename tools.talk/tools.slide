@@ -1,0 +1,142 @@
+Some tools wot I did
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* The joy of little tools
+
+- All these are small.
+- In constant use.
+- Rarely change.
+
+* godef
+
+- https://github.com/rogpeppe/godef
+- Used by vim-go, emacs Go mode, etc.
+- Originally forked from go/types.
+- Not totally accurate, but pretty good.
+
+	usage: godef [flags] [expr]
+	  -A=false: print all type and members information
+	  -a=false: print public type and member information
+	  -acme=false: use current acme window
+	  -debug=false: debug mode
+	  -f="": Go source filename
+	  -i=false: read file from stdin
+	  -o=-1: file offset of identifier in stdin
+	  -t=false: print type information
+
+* godeps
+
+- https://github.com/rogpeppe/godeps
+- Yet another dependency management tool.
+- Written earlier than most (same time as godep).
+- Used by all Canonical Go projects.
+- Pretty darn reliable.
+- 828 lines of code.
+
+* godeps
+
+- Write all dependencies (including testing deps) to dependencies.tsv
+
+	godeps -t ./... > dependencies.tsv
+
+- One line of dependencies.tsv
+
+	gopkg.in/check.v1	git	4f90aeace3a26ad7021961c297b22c42160c7b25	2016-01-05T16:49:36Z
+
+- (repo path, VCS kind, canonical revision, revision number/date)
+
+* godeps
+
+	godeps -u dependencies.tsv
+
+- For each line in dependencies.tsv, update repository to that revision.
+- Fetch from network if needed.
+- Careful not to overwrite local changes.
+
+* showdeps
+
+- Problem: why is net/http/httptest being imported?
+- Large program, not that easy to answer.
+- Showdeps can answer questions like this.
+- 246 lines of code.
+
+* sortimports
+
+- https://github.com/rogpeppe/sortimports
+- Company standard for sorting imports into sections.
+- gofmt, goimports don't do the same.
+- When refactoring, just write the tool!
+- Written in a morning.
+- 237 lines of code.
+
+* rjson
+
+- https://github.com/rogpeppe/rjson
+- JSON is annoying to write and read
+- Yes, you forgot to remove that trailing comma!
+- Noise: map keys really don't need quoting.
+- Noise: all those commas.
+
+* rjson
+
+- Inspiration from Go syntax.
+- Lexical comma insertion
+- Quotes around keys not needed for many keys.
+
+* rjson
+
+- From this:
+	{
+		"body": {
+			"contact": [
+				"mailto:rogpeppe@gmail.com"
+			],
+			"id": 94267,
+			"key": {
+				"e": "AQAB",
+				"kty": "RSA",
+				"n": "something"
+			}
+		},
+		"new_authzr_uri": "https://acme-v01.api.letsencrypt.org/acme/new-authz",
+		"terms_of_service": "https://letsencrypt.org/documents/LE-SA-v1.0.1-July-27-2015.pdf",
+		"uri": "https://acme-v01.api.letsencrypt.org/acme/reg/94267"
+	}
+
+* rjson
+
+- To this:
+
+	{
+		body: {
+			contact: [
+				"mailto:rogpeppe@gmail.com"
+			]
+			id: 94267
+			key: {
+				e: "AQAB"
+				kty: "RSA"
+				n: "something"
+			}
+		}
+		new_authzr_uri: "https://acme-v01.api.letsencrypt.org/acme/new-authz"
+		terms_of_service: "https://letsencrypt.org/documents/LE-SA-v1.0.1-July-27-2015.pdf"
+		uri: "https://acme-v01.api.letsencrypt.org/acme/reg/94267"
+	}
+
+* rjson
+
+	go get github.com/rogpeppe/rjson/cmd/rjson
+
+- Fully reversible.
+- Forked from encoding/json.
+- Written on a plane journey!
+
+* Conclusion
+
+- Small tools written to scratch an itch remain useful.
+- Minimal maintenance.

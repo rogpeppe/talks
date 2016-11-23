@@ -1,0 +1,135 @@
+Go packages
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* First Go program
+
+- The main package is special
+- The main function too!
+- Can use "go run hello.go"
+
+	package main
+	import "fmt"
+	
+	func main() {
+		fmt.Println("hello, world")
+	}
+
+* Beyond "go run"
+
+- go run is an easy way to get started
+- ... but quickly run up against a cliff
+
+* What is a package?
+
+- Collection of Go files in a directory.
+- All files in directory use the same package name.
+- All code shares the var/type/const namespace.
+- One flat exported namespace.
+- Imported as a unit.
+
+* Package names
+
+- All packages live in global name space.
+- No central control.
+- The go tool infers repository from name.
+- ... but only used in "go get".
+
+* $GOPATH
+
+- One place for all Go code.
+
+	$GOPATH/src/<package>
+
+- In theory you can have multiple elements...
+- ... but in practice almost no-one does that.
+
+- export GOPATH=$HOME
+
+* Let's make a new package
+
+- First we need a place to put it.
+- github is an easy option.
+- But we don't actually *need* to publish.
+
+	$ mkdir -p $GOPATH/src/github.com/rogpeppe/newthing
+	$ vim $GOPATH/src/github.com/rogpeppe/newthing/thing.go
+
+	package thing
+
+	// Thing is something.
+	type Thing struct {
+		name string
+	}
+	
+	// NewThing returns a new thing.
+	func NewThing(name string) *Thing {
+		return &Thing{
+			name: name,
+		}
+	}
+
+* Package installation
+
+	$ go install github.com/rogpeppe/newthing
+
+- Almost identical to "go build"
+- Different from main packages.
+- Think of $GOPATH/pkg as a cache.
+- Always safe to remove object files:
+
+	$ rm -r $GOPATH/pkg
+
+* Package update
+
+- go get -u
+- BUT! controversy!
+- Packages change over time.
+- Stability?
+- Availability?
+- Controlled release?
+
+* Stability - original approach
+
+- Maintain stable API
+- Change package paths on breaking change.
+- Approach epitomised by gopkg.in
+- No extra tools required
+
+	gopkg.in/foo.v1
+	gopkg.in/foo.v2
+	gopkg.in/foo.v3-unstable
+
+* Stability - dependency locking
+
+- "Lock file"
+- Perhaps automatically generated
+- Example: godeps
+
+* godeps
+
+- Used only by Canonical
+- Very simple
+
+	# lock dependencies.
+	godeps -t ./... > dependencies.tsv
+
+	# restore dependencies
+	godeps -u dependencies.tsv
+
+* Availability - vendoring
+
+- Recently standardised "vendor" directory.
+- Any "vendor" directory in parent is considered.
+- Good for main packages.
+- Not good for libraries.
+
+* Controversy
+
+- No-one likes any of the existing solutions.
+- Standardisation process
+
+	https://docs.google.com/document/d/18tNd8r5DV0yluCR7tPvkMTsWD_lYcRO7NhpNSDymRr8/edit

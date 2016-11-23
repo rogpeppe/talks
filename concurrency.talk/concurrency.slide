@@ -1,0 +1,181 @@
+Concurrency Building Blocks in Go
+How to keep concurrency under control as your system grows.
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Review
+
+- No protection against races
+- No protection against deadlocks
+- Convention is our only weapon
+- Channels are a great primitive, but so much freedom!
+
+* Strategy
+
+- Use local knowledge
+- Write code that is obviously correct
+- ... or low level and very well tested
+
+* Under the hood
+
+- Functions and methods are great at hiding implementation details
+- Concurrency is often just an implementation detail
+- So hide it.
+- APIs all the way down!
+
+* APIs
+
+- Function
+- Concrete type
+- Interface
+- Rare to expose channels directly.
+
+* Under the hood: example
+
+- How much concurrency is visible in the net package API?
+- In Go, blocking is not a sin.
+
+* Short term vs long term concurrency
+
+- Short term: often as part of a network request
+- Long term: independent, long-lived "agent"
+- Each invites a different style.
+
+* Short term concurrency
+
+- Often in response to a network call.
+- Respond to the call in a timely way
+- Concurrency useful to interact with remote services
+- Request is bounded in time.
+
+* Long term concurrency
+
+- Indefinite life span.
+- Independent agents within your server.
+- Each has its own "event loop".
+- Easier to deadlock.
+
+* Short term concurrency strategy
+
+- Use net.Context or similar.
+- Aways ready to be shut down.
+
+* Short term concurrency building block: concurrent request
+
+- Send a request concurrently
+- Be careful about leftovers.
+
+	type replyInfo struct {
+		value Value
+		err error
+	}
+	reply := make(chan replyInfo, 1)
+	go func() {
+		v, err := doSomething()
+		reply <- replyInfo{
+			value: v,
+			err: error,
+		}
+	}()
+	select{
+	case <-reply:
+	case <-ctxt.Done():
+	}
+
+* Intuitions:
+
+- Don't hold locks when blocking on external events.
+- Or calling external functions (but it depends).
+- Watch out for cycles.
+- If no blocking, just use mutex.
+- If in doubt, always be ready to receive.
+
+* Don't block: buffering techniques:
+
+- Use latest value.
+
+	func sender(in <-chan Value, out chan<- Value) {
+		haveVal := false
+		var current Value
+		for {
+			outc := out
+			if !haveValue {
+				outc = nil
+			}
+			select {
+			case current, haveValue = <-inc:
+				if !haveValue {
+					close(outc)
+					return
+				}
+			case outc <- current:
+				haveVal = false
+			}
+		}
+	}
+		
+* Don't block: buffering techniques
+	
+- Accumulate values into slice.
+
+	func sender(in <-chan *Value, out chan<- *Value) {
+		var vals []*Value
+		var closed bool
+		for {
+			var sendv *Value
+			outc := out
+			if len(vals) == 0 {
+				if closed {
+					close(out)
+					return
+				}
+				outc = nil
+			} else {
+				sendv = vals[0]
+			}
+			select {
+			case v, ok := <-inc:
+				if !ok {
+					closed = true
+					break
+				}
+				vals = append(vals, v)
+			case outc <- sendv:
+				vals = vals[1:]
+			}
+		}
+	}
+
+* Don't block: buffering techniques
+
+- Start a goroutine.
+
+	func sender(in <-chan *Value, out chan<- *Value) {
+		for v := range in {
+			v := v
+			go func() {
+				out <- v
+			}()
+		}
+	}
+
+* Clear division between non-blocking and blocking calls.
+	
+- non-blocking: Close
+- blocking: Read, Write
+- But watch out! Close can block sometimes.
+
+* Patterns
+
+- Infinite select
+- Pipeline
+- "Just enough" channel buffer size
+
+* Tools:
+
+	https://godoc.org/github.com/rogpeppe/worker
+	github.com/juju/utils/parallel
+	github.com/juju/utils/voyeur
