@@ -1,3 +1,4 @@
+<!---
 techniques:
 
 - straight values
@@ -16,6 +17,13 @@ techniques:
 - Raw
 - streaming
 
+-->
+
+# Codecs in Go
+
+At this dojo, we'll concentrate on exploring techniques for mapping encoded values to and from Go values.
+
+We'll focus on JSON because the principles are similar across several different codec packages and JSON is well known. Codec packages in Go usually provide rules for mapping a Go types to and from an encoding.
 
 # Exercises:
 
@@ -93,7 +101,10 @@ as "1.2.4".
 	- See gopkg.in/yaml.v2
 	- See gopg.in/mgo.v2/bson
 	- encoding/xml
-	- How are they the same/different?
+	- encoding/binary
+	- github.com/rogpeppe/rjson
+	- How are they the same?
+	- How are they different?
 
 11. (advanced!) Define a codec for this type: https://godoc.org/github.com/mvdan/sh/syntax#Stmt
 
