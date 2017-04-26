@@ -226,6 +226,8 @@ e.g.
 - But they're also a liability.
 - Internal "unit" tests can be a burden.
 
+.html tweet.html
+
 * Inconsistency
 
 - Consistent things can be changed consistently.
