@@ -34,8 +34,6 @@ rogpeppe@gmail.com
 - The more automatic the better!
 - Automatic changes can be re-applied easily
 
-.image https://imgs.xkcd.com/comics/automation.png
-
 * Experience
 
 - I currently work on a code base that's about 2 million lines of Go.
@@ -227,8 +225,6 @@ e.g.
 - Tests are crucial.
 - But they're also a liability.
 - Internal "unit" tests can be a burden.
-
-.html tweet.html
 
 * Inconsistency
 
