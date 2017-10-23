@@ -1,0 +1,153 @@
+Macaroon bakery V2 changes
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Summary
+
+- Macaroons are authorization tokens
+- We also use them for authentication
+- Used for a while but still feeling our way
+- Efficiency and API improvements
+
+* Layers
+
+- Macaroon (gopkg.in/macaroon.v*)
+- Bakery (gopkg.in/macaroon-bakery.v*/...)
+
+* Macaroon
+
+- More general and space-efficient encoding
+- No size limits
+- No data restrictions
+- Agreed amongst principal implementations
+- Implemented by several (pymacaroons, libmacaroons)
+- More languages still to come (javascript)
+
+* JSON format change
+
+- Version 1 JSON format (160 bytes):
+
+	{
+		"identifier":"random id",
+		"location":"somewhere",
+		"caveats": [{"cid":"condition"}],
+		"signature":"ff17f8a4dcb33890dc695b758f2e2e9f57f8c235f4aac04b3cfccf4bef4d60fd",
+	}
+
+- Version 2 JSON format (109 bytes);
+
+	{
+		"i":"random id",
+		"l":"somewhere",
+		"c": [{"i":"condition"}]
+		"s64":"_xf4pNyzOJDcaVt1jy4un1f4wjX0qsBLPPzPS-9NYP0"
+	}
+
+* Binary format change
+
+- Version 1 binary format (71 bytes)
+
+	0000000   0  0  1  7  l  o  c  a  t  i  o  n     s  o  m
+	0000010   e  w  h  e  r  e \n  0  0  1  9  i  d  e  n  t
+	0000020   i  f  i  e  r     r  a  n  d  o  m     i  d \n
+	0000030   0  0  1  2  c  i  d     c  o  n  d  i  t  i  o
+	0000040   n \n  0  0  2  f  s  i  g  n  a  t  u  r  e   
+	0000050  ff 17 f8 a4 dc b3  8 90 dc  i  [  u 8f  .  . 9f
+	0000060   W f8 c2  5 f4 aa c0  K  < fc cf  K ef  M  ` fd
+	0000070  \n
+
+- Version 2 binary format
+
+	0000000  02 01 \t  s  o  m  e  w  h  e  r  e 02 \t  r  a
+	0000010   n  d  o  m     i  d 00 02 \t  c  o  n  d  i  t
+	0000020   i  o  n 00 00 06    ff 17 f8 a4 dc b3  8 90 dc
+	0000030   i  [  u 8f  .  . 9f  W f8 c2  5 f4 aa c0  K  <
+	0000040  fc cf  K ef  M  ` fd
+
+* Bakery
+
+- Further space efficiency gains
+- Significant API changes
+
+* Space efficiency
+
+- Distinguish between undischarged and discharged macaroons
+- Undischarged macaroon has third party caveat information
+- That information doesn't need to be in final macaroon
+- Macaroon is acquired much less often than it's used
+
+* Discharge protocols
+
+- XXX TODO
+
+* Current API
+
+- Existing services not "obviously correct"
+- Not easy to test when authorization inline with business logic
+- All macaroons equivalent in power.
+- Authorization bundled together with business logic
+- Forget to add auth logic => vulnerability
+
+* New API
+
+- Separate auth from business logic
+- Any macaroon associated with one or more *operations*
+- Operation is (entity, action) tuple
+- Operations are defined at a per-service level
+- Authentication used as a gateway to authorization
+
+* Example: charmstore
+
+- Request: read cs:~CanonicalLtd/newhotness
+- Required operation:
+
+	{
+		Entity: "cs:~CanonicalLtd/newhotness",
+		Action: "read",
+	}
+
+- If you've got a macaroon with that operation, accepted.
+- No macaroon -> authentication required
+
+* Authentication: LoginOp
+
+- LoginOp is special authentication operation
+- Formalises existing practice
+- A LoginOp macaroon also holds authentication info
+- Via third party caveat and "declared" caveat.
+
+* Authorisation via authentication
+
+- Authorizer interface
+- Should this identity be authorized for these ops?
+
+	type Authorizer interface {
+		Authorize(ctx context.Context, id Identity, ops []Op) (allowed []bool, caveats []checkers.Caveat, err error)
+	}
+	
+- Often involves reading database to find ACL for each op.
+- ACLAuthorizer implement Authorizer by doing that
+
+	type ACLAuthorizer struct {
+		GetACL func(ctx context.Context, op Op) (acl []string, allowPublic bool, err error)
+	}
+
+* Service structure
+
+- Authorize request
+- If not authorized, mint macaroon and return "discbarge required" error
+- Run request
+
+* Authorize request
+
+	func NewChecker(p CheckerParams) *Checker
+	func (c *Checker) Auth(mss ...macaroon.Slice) *AuthChecker
+	func (a *AuthChecker) Allow(ctx context.Context, ops ...Op) (*AuthInfo, error)
+
+- Make a Checker once for the lifetime of the service
+- Make an AuthChecker for a given request
+- Allow tells you if all the required operations are allowed.
+- Also returns authentication information if known.
