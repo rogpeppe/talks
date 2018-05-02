@@ -1,4 +1,4 @@
-** Some talks given by Roger Peppe
+## Some talks given by Roger Peppe
 
 - [bakery-v2.talk](https://talks.godoc.org/github.com/rogpeppe/talks/bakery-v2.talk/bakery.slide)
 - [concurrency.talk](https://talks.godoc.org/github.com/rogpeppe/talks/concurrency.talk/concurrency.slide)
