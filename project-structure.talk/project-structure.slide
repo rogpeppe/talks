@@ -1,0 +1,95 @@
+Go project structure
+Growing with grace
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* What is a project?
+
+- Larger than a single file
+- Larger than a single package
+
+* What is "project structure"?
+
+- Type relationships
+- Package dependency graph
+- Module dependency graph
+
+* Dependencies
+
+- Dependencies are key!
+- Wrong dependencies => endless friction
+
+* Shallowness
+
+- Shallow is good!
+- Best of all is zero dependencies
+- Cross-module deps are more important
+- If in doubt, return static types, receive interfaces
+- Avoid using dependency's types in public APIs
+
+* Narrowness
+
+- Keep APIs small but not *too* small.
+
+"A package should encompass one idea or concept.
+http is a concept, http client or http message is not."
+Dave Cheney
+
+- Keep implementation details unexported.
+
+* Depth
+
+- Diamond dependencies
+- Instability
+
+* Common pattern: client-server
+
+.image client-server-dependencies-01.svg
+
+: It's common to start with just one package
+: containing both client and server.
+
+* Split into separate packages
+
+.image client-server-dependencies-02.svg
+
+: We've found that when splitting client and server
+: into different package, it makes sense to use a third package to
+: hold types passed over the wire.
+: We tend to call this package "params", but other
+: names are also used, e.g. "wiretypes".
+
+* With tests
+
+.image client-server-dependencies-03.svg
+
+: There's a cyclic dependency between package tests
+: but not between the packages themselves.
+
+
+* Split into separate modules
+
+.image client-server-dependencies-04.svg
+
+: but where should params go?!
+
+* In the client!
+
+.image client-server-dependencies-05.svg
+
+* Still cyclic
+
+- Even though Go allows it, a cyclic dep is bad.
+- Consider making incompatible server change.
+- (you will need to do this!)
+- Change client and server at same time.
+- Publish broken server.
+- Publish client depending on broken server
+- Publish server with new client.
+
+* Eliminate that nasty cyclic dependency
+
+.image client-server-dependencies-06.svg
