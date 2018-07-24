@@ -93,3 +93,101 @@ Dave Cheney
 * Eliminate that nasty cyclic dependency
 
 .image client-server-dependencies-06.svg
+
+* Concrete project structure
+
+- No established conventions
+- ... but here's what we've been doing
+
+* Directory structure for server-side
+
+	$repo/$X			Top-level repo
+		internal
+			store		Backend storage
+			v1			Handler for version 1
+			v2			Handler for version 2
+			etc
+
+* Directory structure for client-side
+
+	$repo/$X
+		params			Wire types
+		cmd/$X			Commands (main only)
+		cmd/$X/${X}cmd	Bulk of command
+		internal
+			etc
+		
+	
+# how to structure Go projects
+# 
+# most examples are small
+# a small handful of packages
+# but programs grow
+# 
+# what's a "project"?
+# 
+# - larger than a single file
+# - larger than a single package
+# - one or more repositories
+# - starting to grow
+# 
+# 
+# small projects:
+# 
+# - 
+# 
+# much better to have wide, shallow dependency graph than a deep one
+# 
+# the deeper the graph, the more likely you are to have diamond dependency issues
+# 
+# kinds of Go program:
+# 
+# 	servers
+# 	command line programs
+# 
+# 
+# be careful what you export!
+# 
+# 	every symbol exported is something a client might rely on
+# 	open source makes this more of a problem
+# 
+# dependency management
+# 
+# 	dependencies are key!
+# 	and tight coupling...
+# 	tight coupling is not always evident in the package graph
+# 	e.g. implicit interfaces; global registries
+# 	- cyclic dependencies
+# 
+# 
+# managing size
+# 	- granularity of a Go package
+# 		- at the level of "an idea"
+# 
+# managing concepts
+# 	- functions vs methods
+# 
+# servers vs clients
+# 
+# 	server -> params
+# 	server_test -> client -> params
+# 	client -> params
+# 	client_test -> (optional server?)
+# 
+# 
+# what kind of friction are we talking about?
+# 
+# - backwardly incompatible change in indirect dependency
+# - 
+# 
+# directory hierarchy:
+# 
+# 
+# $repo/$X
+# 	config
+# 	cmd/$X
+# 	internal
+# 		$X
+# 		v1
+# 		v2
+# 		

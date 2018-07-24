@@ -1,0 +1,169 @@
+Beginning Go
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Getting started
+
+- play.golang.org
+- Run Go in the browser
+- Restrictive but enough for quite a bit
+
+* What is Go?
+
+- Compiled language
+- Fast to compile and run
+- Lightweight feel
+- Favours simplicity
+- Good for concurrency
+
+* Hello world
+
+	package main
+	import "fmt"
+	
+	func main() {
+		fmt.Println("Hello, world")
+	}
+
+* Arithmetic
+
+- Add: +
+- Subtract: -
+- Divide: /
+- Multiple: *
+- Modulus: %
+- also bit operators
+
+.play arithmetic.go
+
+* Constants
+
+	const Pi  = 3.14159265358979323846264338327950288419716939937510582097494459
+	const Hello = "Hello, world!"
+
+.play constants.go
+
+* Variables
+
+- Block-based scope, not function based
+- Type of variable is inferred by default.
+- ... but known in advance.
+
+	var x = 99
+	var s = "The Go Programming Language"
+
+* Comparisons
+
+- Equality: == !=
+- Less: <
+- Less or equal: <=
+- Greater: >
+- Greater or equal: >=
+- Boolean (true or false) result
+
+* Loops
+
+- Only one loop keyword!
+
+* Loops
+
+- infinite loop
+
+	for {
+		fmt.Println("endless text")
+	}
+
+* Loops
+
+- A condition that's checked at the start of each iteration
+
+.play loopcondition.go
+
+* Loops
+
+- Initialization, condition and step statement
+
+	for initialize; condition; step {
+	}
+
+.play loopthreepart.go
+
+* If
+
+	if condition {
+	} else if condition {
+	} else {
+	}
+
+* Switch
+
+	switch x {
+	case 1:
+		fmt.Print("one")
+	case 2:
+		fmt.Print("two")
+		fallthrough
+	case 3, 4:
+		fmt.Print("three or four")
+	default:
+		fmt.Print("none of the above")
+	}
+
+* Switch with no condition
+
+	switch {
+	case x < 5:
+		fmt.Print("small")
+	case x < 50:
+		fmt.Print("medium")
+	default:
+		fmt.Print("large")
+	}
+
+* Arithmetic types
+
+- int
+- uint
+- sized int: int8, int16, int32, int64, uint8, uint16, uint32, uint64
+- float64
+- float32
+
+* Formatted print
+
+- Similar to C's printf
+- Can include width
+- Default is right-alignment; use "-" for left.
+- Backslash for escape character.
+
+.play printf.go
+
+* Random numbers
+
+- Actually pseudo-random
+
+.play printf.go
+
+* Functions
+
+.image func-intn.png
+
+* Defining a function
+
+	package main
+	
+	import "fmt"
+	
+	// kelvinToCelsius converts °K to °C
+	func kelvinToCelsius(k float64) float64 {
+		k -= 273.15
+		return k
+	}
+
+	func main() {
+		kelvin := 294.0
+		celsius := kelvinToCelsius(kelvin)
+		fmt.Print(kelvin, "°K is ", celsius, "°C")
+	}
