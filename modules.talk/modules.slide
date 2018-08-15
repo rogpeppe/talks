@@ -48,6 +48,21 @@ rogpeppe@gmail.com
 	$ 
 
 - Note: no GOPATH required!
+- All dependencies in read-only directories
+
+* Backward compatibility
+
+- GO111MODULE=on
+- GO111MODULE=off
+- GO111MODULE=auto
+
+* What about making temporary local changes?
+
+- Experimental gohack command
+- Checks out a module into a local directory
+- Adds a replace statement to go.mod
+
+	go get github.com/rogpeppe/gohack
 
 * Making a module
 
@@ -125,7 +140,7 @@ Tools cannot work around a lack of cooperation.
 
 .link http://www.hyrumslaw.com/ Hyrum's Law
 
-With a sufficient number of users of an API, it does not matter what you promise in the contract: all observable behaviors of your system will be depended on by somebody.
+_With_a_sufficient_number_of_users_of_an_API_it_does_not_matter_what_you_promise_in_the_contract:_all_observable_behaviors_of_your_system_will_be_depended_on_by_somebody._
 
 - Almost any change can be considered incompatible
 - We need to work together to avoid fragmenting the community
@@ -133,14 +148,14 @@ With a sufficient number of users of an API, it does not matter what you promise
 
 * Root module control
 
-- go.mod file can *exclude* and *replace* modules
+- go.mod file can _exclude_ and _replace_ modules
 - Both are ignored by importers
 
 	exclude golang.org/x/net/v2 v2.0.5
 	replace gopkg.in/mgo.v2 => github.com/globalsign/mgo
 	replace github.com/kr/pretty ../prettylocal
 
-* New addtions to go command 
+* New additions to go command 
 
 	go mod init
 	go mod tidy
@@ -159,7 +174,7 @@ With a sufficient number of users of an API, it does not matter what you promise
 * go list -m
 
 - Lists modules not packages
-- Note that test dependencies *are* included.
+- Note that test dependencies _are_ included.
 
 Show all packages in use:
 
@@ -167,7 +182,7 @@ Show all packages in use:
 
 * What about vendor?
 
-- You *can* still vendor!
+- You _can_ still vendor!
 - ... but mostly ignored
 - Local/global caching
 
