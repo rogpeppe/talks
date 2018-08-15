@@ -1,0 +1,53 @@
+go get
+
+	when it breaks
+
+version-aware godoc, vuln checker
+
+java: maven
+node: npm
+
+ruby: bundler
+rust: cargo
+
+dep implemented general approach of bundler & cargo
+
+why versions are necessary
+
+versioning principles:
+
+	compatibility
+	
+		The meaning of a name should not change over time
+
+		Go 1 compatibility
+		
+		diamond dependency
+
+	repeatability
+	cooperation
+
+Principle 1: Import compatiblity rule:
+
+	If an old package and a new package have the
+	same import path, the new package must be
+	backward compatible with the old package.
+
+Principle 2: Repeatability
+
+	The result of a build of a given version of a package
+	should not change over time.
+
+Principle 3: Cooperation
+
+	We must all work together to maintain the Go ecosystem.
+	Tools cannot work around a lack of cooperation.
+	
+	fragmentation vs healthy/thriving
+	
+
+my/thing/v2/sub/pkg
+
+
+go fix can fix import paths
+

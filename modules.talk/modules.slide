@@ -1,0 +1,199 @@
+Go modules
+Reliable dependency management for Go
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+* Dependency management 
+
+- Major missing feature in Go
+- Google uses monorepo
+
+* Why do we care?
+
+- go get fails
+- projects grow
+
+* Prior art
+
+	GOPATH      2012
+	godeps      2013 (April)
+	godep       2013 (May)
+	gopkg.in    2014
+	glide       2014
+	gb          2015 (April)
+	govendor    2015 (April)
+	vendor dir  2015 (June)
+	dep         2017
+	go mod      2018
+
+(credit to Chris Hines)
+
+* How do you use it?
+
+- built into the go command
+- often automatic
+- migration from existing tools
+
+* Sample usage
+
+	$ git clone git@github.com:gobuffalo/buffalo
+	$ cd buffalo
+	$ go install ./...
+	go: finding github.com/gobuffalo/mw-contenttype v0.0.0-20180802152300-74f5a47f4d56
+	go: finding github.com/gobuffalo/envy v1.6.3
+	etc...
+	$ 
+
+- Note: no GOPATH required!
+
+* Making a module
+
+	go mod init
+	
+- Uses existing dependency info if available.
+
+	go mod tidy
+
+- Everything else you need!
+
+* Diamond dependencies
+
+- Two modules depend on another module
+- What if they have incompatible requirenents?
+
+* Versioning principles
+
+- Principle 1: Import compatiblity
+
+If an old package and a new package have the
+same import path, the new package must be
+backward compatible with the old package.
+
+* Versioning principles
+
+- Principle 2: Repeatability
+
+The result of a build of a given version of a package
+should not change over time.
+
+* Versioning principles
+
+- Principle 3: Cooperation
+
+We must all work together to maintain the Go ecosystem.
+Tools cannot work around a lack of cooperation.
+
+* Implications of import compatibility principle
+
+- Backward incompatibility implies new major version
+- Use semantic versioning
+- Version 0 implies no compatiblity
+- Major version in import path!
+
+	1.2.3-alpha+build3
+	
+	major.minor.patch-prerelease+build
+	
+	golang.org/x/net/v2/websocket
+
+* Historical precedent
+
+- gopkg.in uses this approach (with different syntax)
+- Packaging systems in other languages do this.
+
+* Watch out!
+
+- Forking a package implies forking its types too
+- And global variables (think registries)
+- Avoid exposing dependencies' types in API if possible
+
+* Repeatability
+
+- Minimal version selection (MVS)
+- Simple algorithm
+- Avoids NP-complete algorithm
+- Controversial
+
+.link https://www.youtube.com/watch?v=7GGr3S41gjM Russ Cox: "Go with versions"
+.link https://research.swtch.com/vgo Russ Cox: Go & Versioning
+.link https://www.youtube.com/watch?v=F8nrpe0XWRg Sam Boyer: "We need to talk about Go modules"
+
+* Cooperation
+
+.link http://www.hyrumslaw.com/ Hyrum's Law
+
+With a sufficient number of users of an API, it does not matter what you promise in the contract: all observable behaviors of your system will be depended on by somebody.
+
+- Almost any change can be considered incompatible
+- We need to work together to avoid fragmenting the community
+- Root module still has control
+
+* Root module control
+
+- go.mod file can *exclude* and *replace* modules
+- Both are ignored by importers
+
+	exclude golang.org/x/net/v2 v2.0.5
+	replace gopkg.in/mgo.v2 => github.com/globalsign/mgo
+	replace github.com/kr/pretty ../prettylocal
+
+* New addtions to go command 
+
+	go mod init
+	go mod tidy
+
+* go mod why
+
+	go mod why -m gopkg.in/yaml.v1
+	go mod why golang.org/x/net/websockets
+
+* go mod edit
+
+- Automate edits to your go.mod file
+- Preserves comments and formatting
+- Can also print go.mod info in JSON format
+
+* go list -m
+
+- Lists modules not packages
+- Note that test dependencies *are* included.
+
+Show all packages in use:
+
+	go list -m all
+
+* What about vendor?
+
+- You *can* still vendor!
+- ... but mostly ignored
+- Local/global caching
+
+* Athens
+
+- Will provide globally federated trust system for modules
+- Standard download protocol
+- Can also run locally
+- Most development at Microsoft
+
+* Athens
+
+- Notaries (download, verify hash, sign)
+- Publishers collect certificates from notaries, provide log
+- Trust is rooted locally
+- Weighted keys
+- Independent foundation
+
+* Controversy
+
+- Sam Boyer thinks MVS is a bad idea
+- Can't tell if declared version is true minimum
+- Let's wait and see!
+- `go get -u` considered harmful?
+
+* Summary
+
+- Go modules are almost certainly here to stay
+- Let's give them a try!
