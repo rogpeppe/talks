@@ -37,6 +37,16 @@ rogpeppe@gmail.com
 - often automatic
 - migration from existing tools
 
+* Go modules
+
+- New in Go 1.11
+- A module is a collection of related Go packages
+- Modules are the unit of source code interchange and versioning
+- The go command has direct support for working with modules
+- Modules replace the old GOPATH-based approach to specifying which source files are used in a given build
+
+    go help modules
+
 * Sample usage
 
 	$ git clone git@github.com:gobuffalo/buffalo
@@ -77,7 +87,7 @@ rogpeppe@gmail.com
 * Diamond dependencies
 
 - Two modules depend on another module
-- What if they have incompatible requirenents?
+- What if they have incompatible requirements?
 
 * Versioning principles
 
@@ -206,9 +216,10 @@ Show all packages in use:
 - Sam Boyer thinks MVS is a bad idea
 - Can't tell if declared version is true minimum
 - Let's wait and see!
-- `go get -u` considered harmful?
+- `go`get`-u` considered harmful?
 
 * Summary
 
 - Go modules are almost certainly here to stay
+- Go 1.11rc1 is out with module support
 - Let's give them a try!
