@@ -58,6 +58,9 @@ Russ Cox 2011-09-15
 Ian Taylor 2015-07-03
 .link https://go-review.googlesource.com/c/go/+/10464/ cmd/go: convert one test from test.bash to Go
 
+- build caching
+- modules
+
 Russ Cox 2018-07-12
 .link https://go-review.googlesource.com/123577 cmd/go: add new test script facility
 
@@ -118,6 +121,8 @@ Russ Cox 2018-07-12
 .image slack-mvdan-suggestion.png
 
 * testscript: the package
+
+	import "github.com/rogpeppe/go-internal/testscript"
 
 - Factor out testscript into external repo
 - Remove some Go-specific stuff
@@ -234,7 +239,7 @@ hello_test.go
 
 * Standalone testscript command
 
-- Paul Jolly(@myitcv)'s contribution.
+- Contributed by Paul Jolly (@_myitcv on Twitter)
 - No Go test code required
 - Built in support for go command.
 - Superb for reporting Go issues!
@@ -247,20 +252,24 @@ hello_test.go
 
 - The go tool itself!
 
-.link https://github.com/golang/go/tree/master/src/cmd/go/testdata/script go tool testscripts
+.link https://github.com/golang/go/tree/aa161ad17e65df8f615f25c5dca84e505a8c8315/src/cmd/go/testdata/script go tool testscripts
 
 - gunk, a protobuf frontend tool
 
-.link https://github.com/gunk/gunk/tree/master/testdata/scripts gunk testscripts
+.link https://github.com/gunk/gunk/tree/c60073dc538afb65d6037e905f2f9fad510b13f7/testdata/scripts gunk testscripts
+
+- gopherjs, a Go-to-Javascript translator
+
+.link https://github.com/myitcv/gopherjs/tree/f5b96be2a04cf73ef5198ad6520e80375fd9764b/testdata gopherjs testscripts
 
 - unparam, a static analysis tool
 
-.link https://github.com/mvdan/unparam/tree/master/testdata/scripts unparam testscripts
+.link https://github.com/mvdan/unparam/tree/1679b9996abdc6431c2147a133e5223ebb86ea60/testdata/scripts unparam testscripts
 
-- fdroidcl, a package manage for Android
+- fdroidcl, a package manager for Android
 
-.link https://github.com/mvdan/fdroidcl/tree/master/testdata/scripts fdroidcl testscripts
+.link https://github.com/mvdan/fdroidcl/tree/8272a66528a04597170adebe0839a38d4e611dbf/testdata/scripts fdroidcl testscripts
 
 - gobin, a module-aware Go binary builder
 
-.link https://github.com/myitcv/gobin/tree/master/testdata gobin testscripts
+.link https://github.com/myitcv/gobin/tree/4cdfd9ad4531d4d46580942a0a3b1d515bfbb0d7/testdata gobin testscripts
