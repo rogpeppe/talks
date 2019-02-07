@@ -1,0 +1,266 @@
+Testing Go commands with testscript
+(filching internal stdlib code for fun and profit)
+
+Roger Peppe
+Canonical Ltd
+rogpeppe@gmail.com
+@rogpeppe
+
+
+* Let's talk about the Go command
+
+- Originally there was no "go" command
+- Go programs were built with Makefiles
+
+	# Copyright 2009 The Go Authors. All rights reserved.
+	# Use of this source code is governed by a BSD-style
+	# license that can be found in the LICENSE file.
+	
+	include $(GOROOT)/src/Make.$(GOARCH)
+	
+	TARG=big
+	GOFILES=\
+		arith.go\
+		nat.go\
+		int.go\
+	
+	OFILES=\
+		arith_$(GOARCH).$O\
+	
+	include $(GOROOT)/src/Make.pkg
+
+* Go 1
+
+- Makefiles don't work under all platforms
+- Want standard way to download Go code
+- Want good UX.
+- Russ Cox to the rescue!
+- Working Go command written in under three months
+- initial design 2011/09/15
+
+	https://codereview.appspot.com/5019045/diff/15003/src/cmd/go/script.txt
+
+- Go 1 released 2012/03/28
+
+* ... but where are the tests?
+
+- Lots of working code, quickly
+- ... but almost no tests!
+- test.bash has about 6 tests
+- Hard Go 1 deadline
+- Tests less important for top level code?
+
+* History
+
+Russ Cox 2011-09-15
+.link https://codereview.appspot.com/5019045 Initial design
+
+Ian Taylor 2015-07-03
+.link https://go-review.googlesource.com/c/go/+/10464/ cmd/go: convert one test from test.bash to Go
+
+Russ Cox 2018-07-12
+.link https://go-review.googlesource.com/123577 cmd/go: add new test script facility
+
+* Test using bash
+
+	TEST 'file:line in error messages'
+	# Test that error messages have file:line information at beginning of
+	# the line. Also test issue 4917: that the error is on stderr.
+	d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
+	fn=$d/err.go
+	echo "package main" > $fn
+	echo 'import "bar"' >> $fn
+	./testgo run $fn 2>$d/err.out || true
+	if ! grep -q "^$fn:" $d/err.out; then
+		echo "missing file:line in error message"
+		cat $d/err.out
+		ok=false
+	fi
+	rm -r $d
+
+* Go version of the same test
+
+	func TestFileLineInErrorMessages(t *testing.T) {
+		tg := testgo(t)
+		defer tg.cleanup()
+		tg.parallel()
+		tg.tempFile("err.go", `package main; import "bar"`)
+		path := tg.path("err.go")
+		tg.runFail("run", path)
+		shortPath := path
+		if rel, err := filepath.Rel(tg.pwd(), path); err == nil && len(rel) < len(path) {
+			shortPath = rel
+		}
+		tg.grepStderr("^"+regexp.QuoteMeta(shortPath)+":", "missing file:line in error message")
+	}
+
+* With the new test script facility
+
+	# look for short, relative file:line in error message
+	! go run ../../gopath/x/y/z/err.go
+	stderr ^..[\\/]x[\\/]y[\\/]z[\\/]err.go:
+
+	-- ../x/y/z/err.go --
+	package main; import "bar"
+
+* test_script.go
+
+- portable: no shell required
+- nice verbosity support (better than "set -x")
+- currently 139 script tests in src/cmd/go/testdata/script
+- helpers for local Go proxy
+- conditions
+
+* Filch!
+
+2018-08-08:
+
+.image slack-mvdan-suggestion.png
+
+* testscript: the package
+
+- Factor out testscript into external repo
+- Remove some Go-specific stuff
+- Make it extensible
+- Also a place for other internal (but useful) pieces from the Go stdlib
+
+* Let's test a command
+
+hello.go
+
+.code hello1/hello.go
+
+* Create a test script
+
+testdata/hello.txt
+
+.code hello1/testdata/hello.txt
+
+* Add it to the test suite
+
+hello_test.go
+
+.code hello1/hello_test.go 0,/ TestScripts\(//^}/
+
+* Run the tests
+
+	--- FAIL: TestScripts (0.01s)
+	    --- FAIL: TestScripts/hello (0.00s)
+	        testscript.go:262: 
+	            > hello
+	            FAIL: testdata/hello.txt:1: unknown command "hello"
+	            
+	FAIL
+	go: exit 1
+	exit status 1
+	FAIL	example.com/hello	0.011s
+
+* Hook up the main function
+
+.code hello1/hello_test.go / TestMain\(/,/^}/
+
+
+	$ go test
+	# example.com/hello [example.com/hello.test]
+	./hello_test.go:12:3: cannot use main (type func()) as type func() int in map value
+	FAIL	example.com/hello [build failed]
+
+* What's going on?
+
+- Testscript requires a main function that returns int
+- need to avoid use of os.Exit
+- (except that doesn't matter _that_ much)
+- Explanation later!
+
+* Refactor main
+
+.code hello2/hello.go
+
+* A bug!
+
+	% go test
+	--- FAIL: TestScripts (0.00s)
+	    --- FAIL: TestScripts/hello (0.00s)
+	        testscript.go:262: 
+	            > hello
+	            [stdout]
+	            hello, world
+	            > stdout 'hello world\n'
+	            FAIL: testdata/hello.txt:2: no match for `hello world\n` found in stdout
+	            
+	FAIL
+	exit status 1
+	FAIL	example.com/hello	0.003s
+
+* More messages
+
+.code hello3/hello.go /^var file/,$
+
+* A test with a file
+
+.code hello3/testdata/withfile.txt
+
+* Coverage
+
+- Even though we're running a separate executable, it's still nice to have coverage.
+- Luckily we can still do that, by the skin of our teeth
+
+* Live demo
+
+* Lots more!
+
+- Other commands built into testscript:
+	
+    cd        mkdir    chmod     rm        cmp        skip
+    cmpenv    stdin    cp        stderr    env        stdout
+    exec      stop     exists    symlink   grep       wait
+
+- Conditions
+
+	[short] skip 'avoid long test'
+	time-consuming test
+
+* Extensibility
+
+- Add new commands for your tests
+- Add new conditions too
+- Support for running the Go tool itself
+
+.link https://godoc.org/github.com/rogpeppe/go-internal/gotooltest github.com/rogpeppe/go-internal/gotooltest
+
+- Local Go module proxy
+
+.link https://godoc.org/github.com/rogpeppe/go-internal/goproxytest github.com/rogpeppe/go-internal/goproxytest
+
+* Standalone testscript command
+
+- Paul Jolly(@myitcv)'s contribution.
+- No Go test code required
+- Built in support for go command.
+- Superb for reporting Go issues!
+
+* Example standalone testscript file
+
+.code build-hello.txt
+
+* Success stories
+
+- The go tool itself!
+
+.link https://github.com/golang/go/tree/master/src/cmd/go/testdata/script go tool testscripts
+
+- gunk, a protobuf frontend tool
+
+.link https://github.com/gunk/gunk/tree/master/testdata/scripts gunk testscripts
+
+- unparam, a static analysis tool
+
+.link https://github.com/mvdan/unparam/tree/master/testdata/scripts unparam testscripts
+
+- fdroidcl, a package manage for Android
+
+.link https://github.com/mvdan/fdroidcl/tree/master/testdata/scripts fdroidcl testscripts
+
+- gobin, a module-aware Go binary builder
+
+.link https://github.com/myitcv/gobin/tree/master/testdata gobin testscripts

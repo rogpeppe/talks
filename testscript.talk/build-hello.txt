@@ -1,0 +1,27 @@
+# Check that the command prints the correct output.
+go run hello.go
+stdout 'hello, world\n'
+
+-- go.mod --
+module hello
+require example.com/printer v1.0.0
+
+-- hello.go --
+package main
+import "example.com/printer"
+func main() {
+	printer.Print("hello, world")
+}
+
+-- .gomodproxy/example.com_printer_v1.0.0/.mod --
+module example.com/printer
+
+-- .gomodproxy/example.com_printer_v1.0.0/.info --
+{"Version":"v1.0.0","Time":"2018-10-22T18:45:39Z"}
+
+-- .gomodproxy/example.com_printer_v1.0.0/printer.go --
+package printer
+import "fmt"
+func Print(m string) {
+	fmt.Println(m)
+}
