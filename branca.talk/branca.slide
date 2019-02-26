@@ -1,0 +1,46 @@
+Branca tokens
+
+Roger Peppe
+Canonical Ltd
+
+* Summary
+
+- Symmetric-key encrypted bearer token
+- Compact representation
+
+* Macaroons
+
+- Authorization
+- Delegation
+- Not information bearing (in general)
+
+* JWT
+
+- Complex standard
+- Potential security holes
+- Signed tokens
+
+* Branca
+
+- RFC 7539
+- XChaCha20 (encryption)
+- Poly1305 (verification)
+- No public key crypto
+
+* Token contents
+
+- Version (1 byte)
+- Timestamp (4 bytes, unsigned, second-resolution)
+- Nonce (24 bytes)
+- Payload (whatever)
+- Verification (16 bytes)
+
+* Encoding
+
+- Base62 vs base64
+
+	benchmark             old ns/op     new ns/op     delta
+	BenchmarkEncodeBase64-4   	 2000000	       594 ns/op
+	BenchmarkDecodeBase64-4   	 3000000	       516 ns/op
+	BenchmarkEncode-4         	 1000000	      2218 ns/op
+	BenchmarkDecode-4         	 1000000	      1321 ns/op
