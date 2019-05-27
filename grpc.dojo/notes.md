@@ -22,9 +22,9 @@ for it (github.com/golang/protobuf/protoc-gen-go)
 
 You can download this at:
 
-https://raw.githubusercontent.com/rogpeppe/grpc-workshop/master/chat.proto
+https://raw.githubusercontent.com/rogpeppe/talks/master/grpc.dojo/chatserver/chat.proto
 
-Short link: https://bit.ly/2HDH86U
+Short link: https://bit.ly/2YOBwws
 
 ## 3. Generate client code
 
