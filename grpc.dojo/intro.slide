@@ -1,0 +1,41 @@
+gRPC Workshop
+
+Roger Peppe
+Heetch
+rogpeppe@gmail.com
+@rogpeppe
+
+* RPC
+
+- "Remote Procedure Call"
+- Send request
+- Receive response
+
+* gRPC
+
+- Protobuf based
+- Not just request/response
+- Can stream in either direction too
+
+* Protobufs
+
+- Binary serialisation format
+- Relies on schema
+- Uses integers, not field names
+- Compact and efficient
+- No inherent message delimiters
+
+* gRPC with Go
+
+- Protobuf compiler: protoc
+- Generates Go code
+- Includes client implementation and server interface
+- use go generate
+
+* Getting started
+
+.link https://grpc.io/docs/quickstart/go/
+
+.link go get -u google.golang.org/grpc
+
+.link https://github.com/protocolbuffers/protobuf/releases

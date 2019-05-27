@@ -15,15 +15,15 @@ func main() {
 
 func main1() int {
 	flag.Parse()
-	msg := "hello, world"
+	msg := "hello, world\n"
 	if *file != "" {
 		data, err := ioutil.ReadFile(*file)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "cannot read file: ", err)
+			fmt.Fprintln(os.Stderr, "cannot read file:", err)
 			return 1
 		}
 		msg = string(data)
 	}
-	fmt.Println(msg)
+	fmt.Print(msg)
 	return 0
 }

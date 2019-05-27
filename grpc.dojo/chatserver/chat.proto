@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "main";
+
+service Chat {
+	// NewUser creates a new user account.
+	// It returns a token that acts as a password for
+	// the user and the IP address of the user client.
+	rpc NewUser(Username) returns (NewUserResponse) {}
+
+	// Say sends a chat message to the server.
+	// The message is authenticated by a user token
+	// as returned by NewUser.
+	rpc Say(User2Server) returns (Empty) {}
+
+	// Listen listens for any messages sent by anyone.
+	rpc Listen(Empty) returns (stream Server2User) {}
+
+	// Who returns a list of all the users.
+	rpc Who(Empty) returns (UserList) {}
+
+	// AnnounceRPCServer announces that a particular
+	// user has an RPC server running.
+	// The message is authenticated by a user token
+	// as returned by NewUser.
+	rpc AnnounceRPCServer(ServerAnnouncement) returns (Empty) {}
+}
+
+// Username holds a desired username.
+message Username {
+	string Name = 1;
+}
+
+// NewUserResponse holds the response to a NewUser
+// RPC call.
+message NewUserResponse {
+	// Token holds a random token that will act as
+	// a password for authenticating the user.
+	// If you don't save this, you won't be able
+	// to act as the user.
+	string Token = 1;
+	// IPAddr holds the IP address (without port)
+	// of the originating machine.
+	string IPAddr = 2;
+}
+
+// Server2User holds a chat message send from the
+// server to a listener.
+message Server2User {
+	// Username holds the name of the user that
+	// sent the message.
+	string Username = 1;
+	// Text holds the text of the message.
+	string Text = 2;
+}
+
+// User2Server holds a chat message sent from
+// a user to the server. It will be broadcast to
+// all listeners.
+message User2Server {
+	// Username holds the name of the user that's
+	// sending the message.
+	string Username = 1;
+	// Token holds the user's token (this acts as a
+	// password).
+	string Token = 2;
+	// Text holds the text of the message.
+	string Text = 3;
+}
+
+// Empty is used to signify an empty response.
+message Empty {
+}
+
+message User {
+	// Name holds the user's name.
+	string Name = 1;
+	// ServerAddr holds the address and port of the
+	// server (e.g. 10.3.4.6:5677)
+	string ServerAddr = 2;
+	// ServerProtocol holds the .proto RPC description
+	// served by the server.
+	string ServerProtocol = 3;
+}
+
+// UserList holds a list of all the users.
+message UserList {
+	repeated User Users = 1;
+}
+
+message ServerAnnouncement {
+	// Username holds the name of the user that's
+	// running the server.
+	string Username = 1;
+	// Token holds the user's token (this acts as a
+	// password).
+	string Token = 2;
+	// ServerAddr holds the address and port of the
+	// server (e.g. 10.3.4.6:5677)
+	string ServerAddr = 3;
+	// ServerProtocol holds the .proto RPC description
+	// served by the server.
+	string ServerProtocol = 4;
+}
