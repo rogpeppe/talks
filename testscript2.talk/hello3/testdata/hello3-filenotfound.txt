@@ -1,2 +1,0 @@
-! hello -f msgfile
-stderr 'cannot read file: open msgfile: no such file or directory'
