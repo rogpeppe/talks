@@ -1,0 +1,5 @@
+hello -f msgfile
+cmp stdout msgfile
+
+-- msgfile --
+Hello Newcastle!

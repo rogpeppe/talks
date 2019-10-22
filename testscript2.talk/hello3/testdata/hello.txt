@@ -1,0 +1,3 @@
+# Check that the command prints the correct output.
+hello
+stdout 'hello, world\n'
