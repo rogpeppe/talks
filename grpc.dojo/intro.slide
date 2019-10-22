@@ -34,6 +34,10 @@ rogpeppe@gmail.com
 
 * Getting started
 
+My gRPC server TCP address:
+
+	192.168.48.210:8888
+
 .link https://grpc.io/docs/quickstart/go/
 
 .link go get -u google.golang.org/grpc
