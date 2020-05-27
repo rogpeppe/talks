@@ -1,0 +1,374 @@
+# CUE for Go tests
+26th May 2020
+
+## This talk
+
+- Introduction to the CUE language
+- Why is CUE useful?
+- Some CUE theory.
+- CUE in Go tests.
+
+## CUE Background
+
+- Developed by Marcel Van Lohuizen
+- Background in computational linguistics
+- Shares much Go DNA
+- Born of long and deep experience with config languages
+- Sound theoretical foundation
+
+## CUE Overview
+
+- A new configuration file format
+- Doesn't pretend to be a standard
+- _Orthogonality_ is key!
+- Configuration is full of cross-cutting concerns
+- Config not well suited for traditional top-down languages
+- Data, schema, validation _and_ policy constraints
+
+## Syntax
+
+- JSON superset
+- _Not_ indentation based
+- Comma-insertion rule (like Go)
+- No need to quote keys
+- Shorthand for nested keys
+- C-style comments
+- Lexically scoped references
+
+```
+	commands: development: {
+		// Enable Go modules
+		GO111MODULE: "on"
+		SENTRY_DSN: ""
+	}
+```
+
+## Syntax
+```
+	{
+	    "commands": {
+	        "development": {
+	            "GO111MODULE": "on",
+	            "SENTRY_DSN": ""
+	        }
+	    }
+	}
+```
+
+## String syntax
+
+- Similar to Swift string literals
+
+```
+readme: """
+	# Ride domain
+
+	Everything related to the ride domain
+
+	"""
+
+matchFiles: #"^[a-z]\.txt$"#
+```
+
+## Algebraic properties
+
+- Associative:
+
+	(A & B) & C ≡ A & (B & C)
+
+- Commutative
+
+	A & B ≡ B & A
+
+- Idempotent
+
+	A & A ≡ A
+
+- Hermetic (reproducible, no side effects)
+
+## Value lattice
+
+- In CUE, all values are types
+- _Some_ values are concrete
+- Concrete values can be exported (e.g. to JSON or YAML)
+- Non-concrete (or "incomplete") values are constraints
+- All CUE values exist within a type lattice
+
+## Value lattice
+
+.image value-lattice.png
+
+## The CUE types
+
+.image cue_types.png
+
+## Numbers on the lattice
+
+.image cue_number_types.png
+
+## Aspect-oriented
+
+> AOP (aspect-oriented programming) is a programming style that can be adopted to define certain policies that in turn are used to define and manage the cross-cutting concerns in an application. In essence, it's a programming paradigm that enables your application to be adaptable to changes.
+
+- Because of its algebraic properties, CUE fits this definition very well.
+- No inheritance
+- Many configuration languages have inheritance/overriding
+- In CUE, if you say `x` is 1, it _is always_ 1
+
+## Constraint language
+
+- Intuitive format for specifying constraints
+
+```
+	// Field "x" must always be a string.
+	x: string
+
+	// "age" must be an integer between 20 and 99.
+	age: int & >=20 & <100
+
+	// color must be red, green or blue.
+	color: "red" | "blue" | "green"
+
+	// income is an optional integer field.
+	income?: int
+```
+
+## Constraints are independent of data
+
+- Constraints can live alongside data and other constraints
+- Can split up data and constraints across files
+```
+s: {
+	a: "hello"
+	b: 3456
+}
+s: a: =~ "^[a-z]+$"		// constrain s.a to be lowercase non-empty string
+s: a: !~ "^reserved-"		// constrain s.a to disallow "reserved-" prefixes.
+```
+
+## Redundancy removal
+
+- Default values
+- Can omit values if they're specified elsewhere
+
+```
+	x: *"usual value" | string
+```
+
+produces:
+
+```
+	{
+		"x": "usual value"
+	}
+```
+
+- But can be overridden
+
+## Arithmetic
+
+- Arithmetic operations
+
+```
+	a: 5
+	b: a * 2 + 1
+```
+
+- String manipulation
+
+```
+	c: "hello"
+	d: "world"
+	msg: c + ", " + d
+	msg: "\(c), \(d)"
+```
+
+## Comprehensions
+
+- Can iterate over structs and lists
+- Not Turing Complete (ostensibly!)
+
+```
+x: {
+	a: 4
+	b: 7
+}
+
+y: {
+	for key, val in x {
+		"\(key)": val * 2
+	}
+}
+```
+
+## Definitions
+
+- Definitions are like templates for values
+- No output unless included in a field
+- Commonly used for struct constraints
+- "closed" struct - does not allow misspelled fields
+- N.B. new syntax
+
+```
+	#Address: {
+	        address?: string
+	        coordinates: #Coordinates
+	}
+	#Coordinates: {
+	        latitude: >= -90 & <= 90
+	        longitude: >= -180 & <= 180
+	}
+```
+
+## Standard library
+
+- Standard library (derived from Go)
+- JSON, YAML codecs
+- Crypto
+- Bit operations
+- Floating point operations
+- Regular expressions
+- String conversions
+
+## Automation
+
+- Designed for code generation and automation
+- Tooling layer
+- `cue fmt`
+- `cue trim`
+- Go integration
+
+## Go tests
+
+- Table-driven tests are popular
+- ... but they can become unwieldy
+- Awkward to share data between tests.
+- Easy to fall into bad patterns.
+
+## Example: Avro
+
+- Binary encoding format often associated with Kafka
+- Testing a new Go codec
+- Input and output are JSON
+
+```
+type roundTripTest struct {
+	testName    string
+	outSchema string
+	inSchema string
+	expectError string
+	inDataJSON  string
+	outDataJSON string
+}
+```
+
+## Test table
+
+```
+var roundTripTests = []roundTripTest{{
+	testName: "intField",
+	inSchema: `{
+		"name": "R",
+		"type": "record",
+		"fields": [{
+			"name": "F",
+			"type": "int"
+		}],
+	}`,
+	outSchema: `{
+		"name": "R",
+		"type": "record",
+		"fields": [{
+			"name": "F",
+			"type": "int"
+		}],
+	}`,
+	inData: `{"F": 2345}`,
+	outData: `{"F": 2345}`,
+ }}
+```
+
+## CUE to the rescue!
+
+- Write test data in CUE
+- Can easily (and flexibly) constrain test data
+- Export to JSON
+- Table-driven test as usual
+
+```
+	tests: intField: {
+		inSchema: {
+			name: "R",
+			type: "record",
+			fields: [{
+				name: "F",
+				type: "int"
+			}],
+		}
+		outSchema: inSchema
+		inData: F: 2345
+		outData: inData
+	}
+```
+Note: you can find the actual example [here](https://github.com/heetch/avro/tree/21d1fb6299513858bb8506f032e5fcebd8d81d83/cmd/avrogo/testdata).
+
+## Example: API conversion
+
+- API migration
+- Need to implement interim service to serve new API
+- New API specified in OpenAPI
+- Fairly complex objects
+- Lots of renaming
+- Rules by example only
+- Examples show old and new API results.
+
+## Testing the converter
+
+- Convert examples to CUE
+- Each example is a test case (TDD!)
+
+```
+	tests: getDriverInfo: {
+		endpoint: "/driver_info"
+		oldAPIResponse: mobile_phone: "+332345356"
+		newAPIResponse: phone_number: "+332345356"
+	}
+	tests: [_]: #Test
+	#Test: {
+		endpoint: string
+		oldAPIResponse: mobile_phone: string
+		newAPIResponse: phone_number: string
+	}
+```
+
+## Firm up the conversion rules
+
+- Use CUE to define the relationship between old and new API
+- It acts as a sanity check on examples
+- And a specification for the program to write!
+- Can check that spec is complete by removing "new" part of test
+```
+	#Test: {
+		oldAPIResponse: _
+		newAPIResponse: phone_number: oldAPIResponse.mobile_phone
+	}
+	autoTests: {
+		for name, test in tests {
+			"\(name)": oldAPIResponse: test.oldAPIResponse
+		}
+	}
+	autoTests: [_]: #Test
+```
+
+## Write the production code
+
+- Requirements keep on changing
+- But the CUE tests continue to act as a sanity check
+- The CUE _could_ actually drive the real application
+- ... but probably not fast enough.
+
+## Summary
+
+- CUE makes for a nice flexible data specification language
+- It can do much, much more!
+- Bye bye YAML :)
