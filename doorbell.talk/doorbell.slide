@@ -1,0 +1,317 @@
+# Building a musical doorbell with TinyGo
+21st Sept 2020
+
+## 2020-06-06T18:17:23+01:00
+
+.image ian-conversation-1.jpg _ 400
+
+## 2020-06-06T18:17:56+01:00
+
+.image ian-conversation-2.jpg _ 400
+
+## And so it began...
+
+- Journey from low to high level
+- Choosing a device
+- Implementing (and testing) a driver
+- Getting clean input
+- Playing a tune
+
+## Ian's idea
+
+- Ian's bit
+
+## Why TinyGo?
+
+- I like Go!
+- Contibrute to the TinyGo ecosystem
+- Write concurrent code as you want to think about it
+
+## What _is_ TinyGo?
+
+- An independent compiler based on LLVM
+- An entirely separate runtime
+- Radically different design choices
+- Clever static analysis
+- Vastly smaller memory requirements
+- Ron Evans talk at Gophercon 2019 (San Diego)
+
+## Choosing a processor
+
+- want device with lots of pins
+- chose Itsybitsy M4 (23 GPIO pins!)
+- then: that you can multiplex I/O on I²C
+
+## I/O
+
+- mcp23017: 16 GPIO pins
+- ~$1 cost
+- simple API
+- https://www.microchip.com/wwwproducts/en/MCP23017
+- no existing drivers in Go
+- no existing TinyGo drivers
+- so let's write one!
+
+## Pins
+
+- A single `uint16` value holds all the pins on the device
+- Inlined methods.
+
+```
+// Pins represents a bitmask of pin values.
+// Port A values are in bits 0-8 (numbered from least significant bit)
+// Port B values are in bits 9-15.
+type Pins uint16
+
+func (p Pins) Get(pin int) bool {
+	return (p & (1<<pin)) != 0
+}
+
+func (p *Pins) Set(pin int, value bool)
+func (p *Pins) High(pin int)
+func (p *Pins) Low(pin int)
+```
+
+## PinMode
+
+- Used to define the configuration for a pin
+
+```
+// PinMode represents a possible I/O mode for a pin.
+// The zero value represents the default value
+// after the chip is reset (input).
+type PinMode uint8
+
+const (
+	// Input configures a pin as an input.
+	Input = PinMode(0)
+	// Output configures a pin as an output.
+	Output = PinMode(1)
+
+	// Direction is the bit mask of the pin mode representing
+	// the I/O direction.
+	Direction = PinMode(1)
+
+	// Pullup can be bitwise-or'd with Input
+	// to cause the pull-up resistor on the pin to
+	// be enabled.
+	Pullup = PinMode(2)
+
+	// Invert can be bitwise-or'd with Input to
+	// cause the pin value to reflect the inverted
+	// value on the pin.
+	Invert = PinMode(4)
+)
+```
+
+## Device
+
+- the core abstraction for actually talking to the chip
+
+```
+func NewI2C(bus I2C, address uint8) (*Device, error)
+
+// SetAllModes sets the mode of all the pins in a single operation.
+// If len(modes) is less than PinCount, all remaining pins
+// will be set fo modes[len(modes)-1], or PinMode(0) if
+// modes is empty.
+//
+// If len(modes) is greater than PinCount, the excess entries
+// will be ignored.
+func (d *Device) SetModes(modes []PinMode) error
+func (d *Device) SetPins(pins, mask Pins) error
+func (d *Device) GetPins() (Pins, error)
+```
+
+## Pin
+
+- A convenient abstraction to update a single pin
+- Same method signatures as stdlib Pin.
+
+```
+// Pin represents a single GPIO pin on the device.
+type Pin struct {
+	// mask holds the mask of the pin.
+	mask Pins
+	// pin holds the actual pin number.
+	pin uint8
+	dev *Device
+}
+
+func (d *Device) Pin(i int) Pin
+func (p Pin) Set(value bool) error
+```
+
+## Joining devices together
+
+- We've got three identical MCP23017 devices
+- Why not treat them as a unit?
+
+```
+type PinSlice []Pins
+
+func (pins PinSlice) Set(i int, value bool)
+func (pins PinSlice) Get(i int) bool
+
+type Devices []*Device
+
+func (devs Devices) SetModes(modes []PinMode) error
+func (devs Devices) SetPins(pins, mask PinSlice) error
+func (devs Devices) GetPins(pins PinSlice) error
+func (devs Devices) Pin(pin int) Pin
+```
+
+## Testing the driver
+
+- Underlying API is very small.
+- Implement all the code in terms of interface type.
+- Now part of TinyGo drivers module
+
+```
+type I2C interface {
+	ReadRegister(addr uint8, r uint8, buf []byte) error
+	WriteRegister(addr uint8, r uint8, buf []byte) error
+}
+
+// In tests.
+type fakeBus struct {...}
+func newBus(c *qt.C) *fakeBus
+func (bus *fakeBus) addDevice(addr uint8) *fakeDev
+
+type fakeDev struct {
+	// Registers holds the device registers. It can be inspected
+	// or changed as desired for testing.
+	Registers [registerCount]uint8
+	// If Err is non-nil, it will be returned as the error from the
+	// I2C methods.
+	Err error
+}
+```
+
+## Debouncing
+
+- Buttons are noisy
+- Let's make it easy to debounce them:
+
+```
+package debounce
+
+type Debouncer struct {...}
+
+ // Update updates the debouncer with the latest button state.
+func (d *Debouncer) Update(state bool)
+
+ // State returns the most recently known stable state.
+func (d *Debouncer) State() bool
+```
+
+## Button channel
+
+- Buttons are pushed when other things are going on
+- We need channels!
+
+```
+func buttonPoller(dev *mcp23017.Device, mask mcp23017.Pins, pushed chan<- mcp23017.Pins) {
+	var debouncers [numButtons]debounce.Debouncer
+	var state mcp23017.Pins
+	for {
+		var newState mcp23017.Pins
+		pins, _ := dev.GetPins()
+		for i := range debouncers {
+			debouncer := &debouncers[i]
+			debouncer.Update(pins.Get(i))
+			newState.Set(i, debouncer.State())
+		}
+		if newState != state {
+			state = newState
+			pushed <- state
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+```
+
+## Let's play a tune!
+
+- Define simplest-possible data format
+- List of (delay, channel) pairs.
+- Relay is always activated for same time.
+- Add "on" and "off" events to slice; sort by time.
+
+```
+type Action struct {
+	Chan uint8
+	On bool
+	When time.Duration
+}
+
+func Play(timer *timer.Timer, pins []mcp23017.Pin, seq []sequence.Action, stop <-chan struct{})
+```
+
+## Playing a tune
+
+- Loop through the sequence, activating and deactivating pins
+
+```
+func Play(timer *timer.Timer, pins []mcp23017.Pin, seq []sequence.Action, stop <-chan struct{}) {
+	start := time.Now()
+	for i, a := range seq {
+		if dt := time.Until(start.Add(a.When)); dt > 0 {
+			select {
+			case <-timer.After(dt):
+			case <-stop:
+				// Note: actual code deactivates all active relays here.
+				return
+			}
+		}
+		pins[a.Chan].Set(a.On)
+	}
+}
+```
+
+## Timer API
+
+- Standard time.Timer not available
+- implemented an alternative designed for TinyGo
+- zero allocations when reused
+
+```
+type Timer struct {
+	C <-chan struct{}
+}
+
+func NewTimer() *Timer
+
+func (t *Timer) After(d time.Duration) <-chan struct{}
+func (t *Timer) Reset(d time.Duration)
+func (t *Timer) Stop()
+func (t *Timer) Close()
+```
+
+## Sketch of top level loop
+
+- wait for a button to be pushed
+- "Ding!"
+- wait for release
+- "Dong!"
+- or... long press plays random tune
+- about 50 lines of straightforward code
+
+## Demonstration
+
+- Watch the demo effect in action.
+
+## Challenges
+
+- lots of unspoken assumptions
+- flaky USB connections
+- lots of processors available, support status not obvious
+- can't read docs!
+
+## Future work
+
+- Get it actually making a noise!
+- Translate from MIDI or ABC to tune format
+- Store tunes on flash drive
+- Easter Eggs
+- Watch this space!
