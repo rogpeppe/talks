@@ -1,0 +1,233 @@
+# Trying Better
+A new retry package for Go.
+25 Jan 2022
+
+## Why retry?
+
+- Retry network request
+- Wait for test condition to become true
+- Wait until there's not a conflict
+
+## How to retry?
+
+- Easiest: try some number of times, sleeping a while after each attempt
+- Thundering herds!
+- Better: exponential backoff
+- Better still: exponential backoff with jitter
+
+## All jitter is not the same
+
+- This blog post explores some options. The context is OCC (Optimistic Concurrency Control) but applicable to other contexts too.
+
+.link https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+
+.image backoff-graph.png
+
+## Example
+
+[github.com/Azure/go-autorest/autorest/adal](https://github.com/Azure/go-autorest/blob/autorest/adal/v0.9.18/autorest/adal/token.go#L1137-L1174)
+
+```
+const maxDelay time.Duration = 60 * time.Second
+attempt := 0
+delay := time.Duration(0)
+for attempt < maxAttempts {
+	resp, err = sender.Do(req)
+	if err == nil && !responseHasStatusCode(resp, retries...) {
+		return
+	}
+	attempt++
+	delay += (time.Duration(math.Pow(2, float64(attempt))) * time.Second)
+	if delay > maxDelay {
+		delay = maxDelay
+	}
+	select {
+	case <-time.After(delay):
+	case <-req.Context().Done():
+		err = req.Context().Err()
+		return
+	}
+}
+```
+
+## Example
+
+[go.etcd.io/etcd/server/v3/etcdserver/api/v2discovery](https://github.com/etcd-io/etcd/blob/server/v3.5.1/server/etcdserver/api/v2discovery/discovery.go#L289-L304)
+
+
+```
+func (d *discovery) logAndBackoffForRetry(step string) {
+	d.retries++
+	retries := d.retries
+	if retries > maxExpoentialRetries {
+		retries = maxExpoentialRetries
+	}
+	retryTimeInSecond := time.Duration(0x1<<retries) * time.Second
+	d.lg.Info(
+		"retry connecting to discovery service",
+		zap.String("url", d.url.String()),
+		zap.String("reason", step),
+		zap.Duration("backoff", retryTimeInSecond),
+	)
+	d.clock.Sleep(retryTimeInSecond)
+}
+```
+
+## A well trodden path
+
+- Lots of existing packages that provide retry functionality
+
+.link https://pkg.go.dev/k8s.io/apimachinery/pkg/util/wait k8s.io/apimachinery/pkg/util/wait
+.link https://pkg.go.dev/github.com/aws/smithy-go/waiter github.com/aws/smithy-go/waiter
+.link https://pkg.go.dev/google.golang.org/grpc/backoff google.golang.org/grpc/backoff
+.link https://pkg.go.dev/github.com/cenkalti/backoff github.com/cenkalti/backoff
+.link https://pkg.go.dev/github.com/hashicorp/go-retryablehttp github.com/hashicorp/go-retryablehttp
+.link https://pkg.go.dev/github.com/googleapis/gax-go/v2#Backoff github.com/googleapis/gax-go/v2
+
+## Callback approach
+
+- Arbitrary example: [k8s.io/client-go/util/retry](https://pkg.go.dev/k8s.io/client-go/util/retry)
+- Calls function repeatedly until it succeeds.
+
+```
+	// OnError allows the caller to retry fn in case the error returned by
+	// fn is retriable according to the provided function. backoff defines
+	// the maximum retries and the wait interval between two retries.
+	func OnError(backoff wait.Backoff, retriable func(error) bool, fn func() error) error
+```
+
+## Callback approach awkwardness
+
+- What if you get an error that you _don't_ want to retry on?
+- What if you want to retry when there's not an error?
+- Giving up control flow makes for awkward returns
+
+```
+func getFoo(ctx context.Context) (*Foo, error) {
+	retry.OnError(backoff, isFatal, func() error {
+		foo, err := apiClient.Get(ctx)
+		if err == nil {
+			return foo, nil		// ... Can't do this!
+		}
+	})
+
+}
+
+```
+
+## "Just give me the time" approach
+
+- Arbitrary example: [github.com/Rican7/retry/backoff](https://pkg.go.dev/github.com/Rican7/retry/backoff)
+
+```
+	// Algorithm defines a function that calculates a time.Duration
+	// based on the given retry attempt number.
+	type Algorithm func(attempt uint) time.Duration
+
+	// Exponential creates a Algorithm that multiplies the factor
+	// duration by an exponentially increasing factor for each
+	// attempt, where the factor is calculated as the given base
+	// raised to the attempt number.
+	func Exponential(factor time.Duration, base float64) Algorithm
+```
+
+## "Just give me the time" approach
+
+- Still more boilerplate than we'd like.
+
+```
+var retryAlg = backoff.Exponential(100 * time.Millisecond, 1.5)
+func getFoo(ctx context.Context) (*Foo, error) {
+	attempt := uint(0)
+	t0 := time.Now()
+	for {
+		foo, err := apiClient.Get(ctx)
+		if err == nil {
+			return foo, nil	// OK now!
+		}
+		nextTime := time.Now().Add(retryAlg(attempt))
+		if nextTime.Since(t0) > maxDuration {
+			return nil, fmt.Errorf("timed out")
+		}
+		time.Sleep(retryAlg(attempt))
+	}
+}
+
+## Just give me a loop!
+
+- I want something that is very lightweight in the common case
+- ... and sufficient for less common cases too
+- How about an iterator?
+
+```
+for i := strategy.Start(); i.Next(); {
+```
+
+## Enter github.com/rogpeppe/retry
+
+- Refinement of a previous API: [gopkg.in/retry.v1](https://pkg.go.dev/gpkg.in/retry.v1)
+- Less general but simpler and more efficient
+- Supports interruptable loops
+- Linear and exponential, jitter, duration and count limit
+
+```
+func getFoo(ctx context.Context) (*Foo, error) {
+	for i := strategy.Start();; {
+		foo, err := apiClient.Get(ctx)
+		if err == nil {
+			return foo, nil
+		}
+		if !i.Next(nil) {
+			return nil, fmt.Errorf("timed out after %d attempts; last error: %v", i.Count(), err)
+		}
+	}
+}
+```
+
+## Refinement: interruptible
+
+- We often want to wait for a context to be canceled too
+
+```
+func getFoo(ctx context.Context) (*Foo, error) {
+	for i := strategy.Start(); ; {
+		foo, err := apiClient.Get(ctx)
+		if err == nil {
+			return foo, nil
+		}
+		if !i.Next(ctx.Done()) {
+			return nil, fmt.Errorf("timed out; last error: %v", err)
+		}
+	}
+}
+```
+
+## Refinement: sometimes you _do_ just want the time
+
+- The `NextTime` method provides that flexibility
+- Faked clock (e.g. for testing)
+- Multiple retries in one goroutine
+- Arbitrary select statements
+- See also: `TryTime` and `StartTime`.
+
+## Example: arbitrary number of backoffs
+
+.play multiple.go /	for {/,/case <-c/
+
+## Serialisable strategy
+
+- `Strategy` has a simple textual form.
+- Sometimes you don't want to make a decision in advance
+- `ParseStrategy`
+- `Strategy.String`
+
+	delay=1ms maxdelay=2s maxduration=1m factor=1.5
+
+## Summary
+
+- Small but flexible API
+- Efficient (no allocations, ~40ns overhead)
+- Low-level dependencies (`strconv` and `time` are highest level)
+- Hopefully hits a sweet spot!
+
+.link https://pkg.go.dev/github.com/rogpeppe/retry
