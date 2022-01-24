@@ -1,0 +1,125 @@
+# Making way for generics
+Some practical things you can do now.
+4 Mar 2021
+
+## Generics are on their way!
+
+- Proposal accepted (but you knew that)
+
+## Brief overview
+
+- Type parameters
+- Like interfaces but the type is on the stack not the heap
+
+```
+func ReadAllChan[T any](c <-chan T) []T {
+	var xs []T
+	for x := range c {
+		xs = append(xs, x)
+	}
+	return xs
+}
+
+type List[T any] struct {
+	Item T
+	Next *List[T]
+}
+
+var intList *List[int]
+```
+
+## Notable restrictions
+
+- Methods cannot have their own type parameters
+- Function values cannot have their own type parameters
+- Limited specialisation
+
+## Timeline
+
+- worked on during Go 1.17
+- expected Go 1.18 (Feb 2022)
+
+## But we can't do anything until it lands, right?
+
+Wrong!
+
+## Generic interfaces
+
+- Like normal interfaces, no need to declare in advance
+- Existing types can satisfy future generic interfaces
+
+## Tired
+
+```
+type Scanner struct { ... }
+
+func (s *Scanner) Scan() bool
+func (s *Scanner) Text() string
+func (s *Scanner) Err() error
+```
+
+## Wired
+
+```
+type Scanner struct { ... }
+
+func (s *Scanner) Next() bool
+func (s *Scanner) Item() string
+func (s *Scanner) Err() error
+```
+
+## Generic iterator
+
+```
+type Iterator[T any] interface {
+	Next() bool
+	Item() T
+	Err() error
+}
+```
+
+## Alternatives
+
+```
+type Iterator2[T any] interface {
+	GetNext() (T, error)
+}
+
+type Iterator3[T any] func() (T, bool)
+```
+
+## Can always adapt!
+
+```
+func Adapt[T any](iter Iterator2[T]) Iterator[T]
+```
+
+- fairly small runtime cost (no allocation per item)
+
+## DRY code
+
+- There are often design choices when removing redundancy
+- reflection vs code duplication vs code generation
+- choice depends on complexity of code
+
+## Tired
+
+```
+func MaxInt(first int64, rest ...interface{}) int64
+```
+
+## Wired
+
+```
+func MaxInt64(values ...int64) int64
+```
+
+## Be consistent
+
+- When using reflect, it's easy to apply arbitrary rules
+- Think about how the generics proposal might apply.
+
+## Summary
+
+- Think forward to generics when you design your APIs
+- When you duplicate code, make it easy to refactor later.
